@@ -18,6 +18,8 @@ services:
     environment:
       DATABASE_URL: jdbc:postgresql://db:5432/medislot
       DB_PASSWORD: ${DB_PASSWORD:-medislot-local-only}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       DEMO_SEED: "true"
       SMS_URL: http://sms-passerelle:8089/sms
       JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
