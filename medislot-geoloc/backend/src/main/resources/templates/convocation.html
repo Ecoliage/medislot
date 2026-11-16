@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="utf-8"/>
+<title>Convocation</title>
+<meta name="subject" content="Convocation à un rendez-vous MediSlot"/>
+<meta name="author" content="MediSlot"/>
+<style>
+@page { size: A4; margin: 20mm; }
+body { font-family: 'Liberation Sans'; font-size: 12pt; color: #1a1a1a; }
+.entete { border-bottom: 2px solid #1d4ed8; padding-bottom: 4mm; margin-bottom: 8mm; }
+.marque { font-size: 16pt; font-weight: 700; color: #1d4ed8; margin: 0; }
+h1 { font-size: 22pt; font-weight: 700; margin: 0 0 6mm 0; }
+h2 { font-size: 13pt; font-weight: 700; margin: 6mm 0 2mm 0; }
+p { margin: 0 0 2mm 0; }
+.reference { margin-top: 8mm; }
+.pied { margin-top: 14mm; font-size: 9pt; color: #555555; }
+</style>
+</head>
+<body>
+<div class="entete">
+<p class="marque">MediSlot</p>
+</div>
+<div>
+<h1>Votre convocation</h1>
+<h2>Patient</h2>
+<p th:text="${c.patientName}">Patient</p>
+<h2>Date et heure</h2>
+<p th:text="${c.day}">Jour</p>
+<p th:text="${c.time}">Heure</p>
+<h2>Praticien</h2>
+<p th:text="${c.practitioner}">Praticien</p>
+<p th:text="${c.specialty}">Spécialité</p>
+<h2>Adresse</h2>
+<p th:text="${c.address + ', ' + c.city}">Adresse</p>
+<p class="reference">Référence : <span th:text="${c.reference}">RDV</span></p>
+</div>
+<div class="pied">
+<p>Document généré par MediSlot · Données fictives · Horaires Europe/Paris</p>
+</div>
+</body>
+</html>

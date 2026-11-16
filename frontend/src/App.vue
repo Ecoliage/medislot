@@ -5,6 +5,7 @@ import RecherchePraticien from './components/RecherchePraticien.vue';
 import EspacePatient from './components/EspacePatient.vue';
 import AdminDebug from './components/AdminDebug.vue';
 import ConvocationButton from './components/ConvocationButton.vue';
+import CalendarButton from './components/CalendarButton.vue';
 import NearbyBar from './components/NearbyBar.vue';
 import NearbyMap from './components/NearbyMap.vue';
 import {nearbyParams, type Place} from './geo';
@@ -489,8 +490,9 @@ onMounted(async () => {
         </div>
         <div class="appointment-actions">
           <button v-if="a.status === 'CONFIRMED'" @click="move(a)">Déplacer</button
-          ><button v-if="a.status === 'CONFIRMED'" class="danger-link" @click="cancelId = a.id">Annuler</button
-          ><ConvocationButton v-if="a.status === 'CONFIRMED'" :id="a.id" /><span v-else class="subtle"
+          ><button v-if="a.status === 'CONFIRMED'" class="danger-link" @click="cancelId = a.id">Annuler</button>
+          <CalendarButton v-if="a.status === 'CONFIRMED'" :id="a.id" />
+          <ConvocationButton v-if="a.status === 'CONFIRMED'" :id="a.id" /><span v-else class="subtle"
             >Convocation indisponible : rendez-vous annulé</span
           ><button class="text-button" @click="showHistory(a.id)">Historique</button>
         </div>
