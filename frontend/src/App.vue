@@ -49,7 +49,8 @@ const authOpen = ref(false),
   email = ref(''),
   password = ref(''),
   name = ref(''),
-  authError = ref('');
+  authError = ref(''),
+  googleEnabled = ref(false);
 const chosen = ref<{professional: Professional; slot: Slot} | null>(null),
   moveId = ref<number | null>(null),
   history = ref<{action: string; label: string; createdAt: string}[] | null>(null),
@@ -254,11 +255,9 @@ function openAuth() {
   authError.value = '';
   register.value = false;
 }
-
-function SignGoogle() {
-  window.location.href = "http://localhost:18080/oauth2/authorization/google"
+function signInWithGoogle() {
+  window.location.assign('/oauth2/authorization/google');
 }
-
 function myAppointments() {
   if (!session.user) {
     openAuth();
@@ -298,6 +297,14 @@ onMounted(async () => {
   } catch (e) {
     error.value = message(e);
   }
+  if (new URLSearchParams(window.location.search).get('error') === 'google') {
+    openAuth();
+    authError.value = 'La connexion avec Google a échoué. Réessayez ou utilisez votre mot de passe.';
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+  api<{enabled: boolean}>('/login/google')
+    .then(r => (googleEnabled.value = r.enabled))
+    .catch(() => {});
   live.connect('/api/events', () => loadSlots().catch(() => {}));
 });
 </script>
@@ -314,15 +321,15 @@ onMounted(async () => {
       MediSlot<span class="brand-dot">.</span>
     </button>
     <nav aria-label="Navigation principale">
-      <button :class="{active: view === 'search'}" @click="view = 'search'">Trouver un praticien</button>
-      <button :class="{active: view === 'appointments'}" @click="myAppointments">Mes rendez-vous</button>
-      <button :class="{active: view === 'recherche'}" @click="view = 'recherche'">Recherche avancée</button>
-      <button :class="{active: view === 'espace'}" @click="view = 'espace'">Espace patient</button>
-      <button :class="{active: view === 'admin'}" @click="view = 'admin'">Admin</button>
-      <button v-if="session.user" @click="showNotices = !showNotices" :aria-expanded="showNotices">
-        Notifications <span class="count">{{ notices.length }}</span></button>
-      <button v-if="!session.user" class="login" @click="openAuth">Se connecter</button>
-      <button v-else class="login" @click="logout">{{ session.user.name.split(' ')[0] }} · Déconnexion</button>
+      <button :class="{active: view === 'search'}" @click="view = 'search'">Trouver un praticien</button
+      ><button :class="{active: view === 'appointments'}" @click="myAppointments">Mes rendez-vous</button
+      ><button :class="{active: view === 'recherche'}" @click="view = 'recherche'">Recherche avancée</button
+      ><button :class="{active: view === 'espace'}" @click="view = 'espace'">Espace patient</button
+      ><button :class="{active: view === 'admin'}" @click="view = 'admin'">Admin</button
+      ><button v-if="session.user" @click="showNotices = !showNotices" :aria-expanded="showNotices">
+        Notifications <span class="count">{{ notices.length }}</span></button
+      ><button v-if="!session.user" class="login" @click="openAuth">Se connecter</button
+      ><button v-else class="login" @click="logout">{{ session.user.name.split(' ')[0] }} · Déconnexion</button>
     </nav>
   </header>
   <RecherchePraticien v-if="view === 'recherche'" /><EspacePatient
@@ -533,25 +540,35 @@ onMounted(async () => {
             {{ busy ? 'Connexion…' : register ? 'Créer mon compte' : 'Se connecter' }}
           </button>
         </form>
-        <div class="cards">
-          <button class="primary" @click="SignGoogle">
-            <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="25" height="25" viewBox="0 0 48 48">
-              <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
-              <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
-              <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
-              <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
-            </svg>
-            Se connecter avec Google
-          </button>
-          <button class="text-button" @click="register = !register">
-            {{ register ? 'J’ai déjà un compte' : 'Créer un compte' }}
-          </button>
-        </div>
+        <button v-if="googleEnabled" class="google" @click="signInWithGoogle">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" viewBox="0 0 48 48">
+            <path
+              fill="#FFC107"
+              d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
+            ></path>
+            <path
+              fill="#FF3D00"
+              d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
+            ></path>
+            <path
+              fill="#4CAF50"
+              d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
+            ></path>
+            <path
+              fill="#1976D2"
+              d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
+            ></path>
+          </svg>
+          Se connecter avec Google
+        </button>
+        <button class="text-button" @click="register = !register">
+          {{ register ? 'J’ai déjà un compte' : 'Créer un compte' }}
+        </button>
         <details class="demo-credentials">
           <summary>Compte de démonstration</summary>
           <p>patient@medislot.test<br />MediSlot-demo-2026!</p>
-        </details>
-      </template>
+        </details></template
+      >
       <template v-else-if="chosen"
         ><p class="eyebrow dark">DERNIÈRE ÉTAPE</p>
         <h2 id="modal-title">Confirmer votre rendez-vous</h2>
@@ -570,8 +587,8 @@ onMounted(async () => {
           {{ busy ? 'Confirmation…' : moveId ? 'Confirmer le déplacement' : 'Confirmer le rendez-vous' }}
         </button></template
       >
-      <template v-else-if="profile">
-        <p class="eyebrow dark">VOTRE PRATICIEN</p>
+      <template v-else-if="profile"
+        ><p class="eyebrow dark">VOTRE PRATICIEN</p>
         <h2 id="modal-title">{{ profile.name }}</h2>
         <p class="specialty">{{ specialties[profile.specialty] }}</p>
         <p>{{ profile.bio }}</p>
@@ -579,23 +596,23 @@ onMounted(async () => {
         <p>{{ profile.address }}, {{ profile.city }}</p>
         <h3>Consultation</h3>
         <p>{{ profile.fee }} € · 30 minutes · Au cabinet</p>
-        <button class="primary wide" @click="profile = null">Voir les disponibilités</button>
-      </template>
-      <template v-else-if="history">
-        <h2 id="modal-title">Historique du rendez-vous</h2>
+        <button class="primary wide" @click="profile = null">Voir les disponibilités</button></template
+      >
+      <template v-else-if="history"
+        ><h2 id="modal-title">Historique du rendez-vous</h2>
         <ol class="timeline">
           <li v-for="(h, i) in history" :key="i">
             <strong>{{ h.label }}</strong>
             <p>{{ dateLabel(h.createdAt) }} à {{ timeLabel(h.createdAt) }}</p>
           </li>
-        </ol>
-      </template>
-      <template v-else-if="cancelId">
-        <h2 id="modal-title">Annuler ce rendez-vous ?</h2>
+        </ol></template
+      >
+      <template v-else-if="cancelId"
+        ><h2 id="modal-title">Annuler ce rendez-vous ?</h2>
         <p>Le créneau sera remis à disposition. Vous pourrez prendre un autre rendez-vous quand vous le souhaitez.</p>
-        <button class="primary wide" :disabled="busy" @click="cancel">Confirmer l’annulation</button>
-        <button class="text-button" @click="cancelId = null">Conserver mon rendez-vous</button>
-      </template>
+        <button class="primary wide" :disabled="busy" @click="cancel">Confirmer l’annulation</button
+        ><button class="text-button" @click="cancelId = null">Conserver mon rendez-vous</button></template
+      >
     </section>
   </div>
 </template>

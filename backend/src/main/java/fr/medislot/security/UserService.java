@@ -1,105 +1,75 @@
 package fr.medislot.security;
 
-import java.util.UUID;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.OAuth2Error;
-import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
-import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
-import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
-import org.springframework.stereotype.Service;
 import fr.medislot.domain.AppUser;
 import fr.medislot.repository.UserRepository;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.stereotype.Service;
 
 @Service
 public class UserService extends OidcUserService {
+  private static final int NAME_MAX = 120;
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+  private final UserRepository userRepository;
+  private final PasswordEncoder passwordEncoder;
 
-    public UserService(
-            UserRepository userRepository,
-            PasswordEncoder passwordEncoder) {
+  public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    this.userRepository = userRepository;
+    this.passwordEncoder = passwordEncoder;
+  }
 
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
+  @Override
+  public OidcUser loadUser(OidcUserRequest request) throws OAuth2AuthenticationException {
+    return localUser(super.loadUser(request));
+  }
+
+  public OidcUser localUser(OidcUser googleUser) {
+    String email = googleUser.getEmail();
+    Boolean verified = googleUser.getAttribute("email_verified");
+    if (email == null || !Boolean.TRUE.equals(verified)) {
+      throw new OAuth2AuthenticationException(
+          new OAuth2Error("invalid_user_info"), "Adresse email Google absente ou non vérifiée");
     }
+    String userEmail = email.toLowerCase(Locale.ROOT);
+    AppUser user =
+        userRepository
+            .findByEmail(userEmail)
+            .orElseGet(() -> create(userEmail, googleUser.getFullName()));
 
-    @Override
-    public OidcUser loadUser(OidcUserRequest request)
-            throws OAuth2AuthenticationException {
+    Set<GrantedAuthority> authorities = new HashSet<>(googleUser.getAuthorities());
+    authorities.add(new SimpleGrantedAuthority("ROLE_" + user.role));
 
-        // Récupérer les informations Google
-        OidcUser googleUser = super.loadUser(request);
+    OidcIdToken token = googleUser.getIdToken();
+    Map<String, Object> claims = new HashMap<>(token.getClaims());
+    claims.put("email", userEmail);
+    return new DefaultOidcUser(
+        authorities,
+        new OidcIdToken(token.getTokenValue(), token.getIssuedAt(), token.getExpiresAt(), claims),
+        googleUser.getUserInfo(),
+        "email");
+  }
 
-        String email = googleUser.getEmail();
-
-        String name = googleUser.getFullName();
-
-        Boolean verified = googleUser.getAttribute("email_verified");
-
-        // Vérification
-        if (email == null || !Boolean.TRUE.equals(verified)) {
-            throw new OAuth2AuthenticationException(
-                    new OAuth2Error("invalid_user_info"),
-                    "Adresse email Google absente ou non vérifiée");
-        }
-
-        email = email.toLowerCase(java.util.Locale.ROOT);
-
-        if (name == null || name.isBlank()) {
-            name = email;
-        }
-
-        final String userEmail = email;
-        final String userName = name;
-
-        // Chercher ou créer un compte
-        AppUser user = userRepository.findByEmail(userEmail)
-                .orElseGet(() -> {
-
-                    AppUser newUser = new AppUser();
-
-                    newUser.email = userEmail;
-                    newUser.name = userName;
-                    newUser.role = "PATIENT";
-
-                    // Mot de passe aléatoire
-                    newUser.password = passwordEncoder.encode(
-                            UUID.randomUUID().toString());
-
-                    return userRepository.save(newUser);
-                });
-
-        // Conservation des autorités Google
-        Set<org.springframework.security.core.GrantedAuthority> authorities = new HashSet<>(
-                googleUser.getAuthorities());
-
-        // Ajout du rôle provenant de PostgreSQL
-        String role = user.role;
-
-        if (role == null || role.isBlank()) {
-            throw new OAuth2AuthenticationException(
-                    new OAuth2Error("invalid_user_role"),
-                    "Le compte ne possède aucun rôle");
-        }
-
-        if (role.startsWith("ROLE_")) {
-            role = role.substring(5);
-        }
-
-        authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
-
-        // Utiliser l'email comme nom du principal
-        // pour conserver la compatibilité avec Principal.getName().
-        return new DefaultOidcUser(
-                authorities,
-                googleUser.getIdToken(),
-                googleUser.getUserInfo(),
-                "email");
-    }
+  private AppUser create(String email, String fullName) {
+    String name = fullName == null || fullName.isBlank() ? email : fullName.strip();
+    AppUser user = new AppUser();
+    user.email = email;
+    user.name = name.length() > NAME_MAX ? name.substring(0, NAME_MAX) : name;
+    user.role = "PATIENT";
+    user.password = passwordEncoder.encode(UUID.randomUUID().toString());
+    return userRepository.save(user);
+  }
 }
