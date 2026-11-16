@@ -1,0 +1,53 @@
+name: medislot-geoloc
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: medislot
+      POSTGRES_USER: medislot
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-medislot-local-only}
+    ports: ["127.0.0.1:55432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medislot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/medislot
+      DB_PASSWORD: ${DB_PASSWORD:-medislot-local-only}
+      DEMO_SEED: "true"
+      SMS_URL: http://sms-passerelle:8089/sms
+      JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+      OTEL_SERVICE_NAME: medislot-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_TRACES_SAMPLER: parentbased_always_on
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      OTEL_RESOURCE_ATTRIBUTES: service.version=1.0.0
+    depends_on:
+      db: {condition: service_healthy}
+      collector: {condition: service_started}
+      sms-passerelle: {condition: service_started}
+    ports: ["127.0.0.1:18080:8080"]
+  frontend:
+    build: ./frontend
+    depends_on: [backend, collector]
+    ports: ["127.0.0.1:8088:80"]
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.165.0
+    command: ["--config=/etc/otelcol/collector.yaml"]
+    volumes: ["./observabilite/collector.yaml:/etc/otelcol/collector.yaml:ro"]
+    depends_on: [jaeger]
+  jaeger:
+    image: jaegertracing/jaeger:2.23.0
+    ports: ["127.0.0.1:16686:16686"]
+  sms-passerelle:
+    image: python:3.13-alpine
+    command: ["python", "-u", "/srv/serveur.py"]
+    volumes: ["./sms-passerelle/serveur.py:/srv/serveur.py:ro"]
+volumes:
+  pgdata:
