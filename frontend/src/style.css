@@ -177,6 +177,22 @@ button {
 .primary:hover {
   background: #05598f;
 }
+.google {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid #c9d3dc;
+  border-radius: 8px;
+  background: white;
+  padding: 12px 23px;
+  font-weight: 700;
+}
+.google:hover {
+  background: #f3f6f9;
+}
 .wide {
   width: 100%;
   margin: 15px 0;

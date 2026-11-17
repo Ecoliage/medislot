@@ -25,6 +25,7 @@ const session = useSession();
 const view = ref<AppView>('search');
 const ongletEspace = ref<string>();
 const authOpen = ref(false);
+const authError = ref('');
 const profile = ref<Professional | null>(null);
 const sessionError = ref('');
 const search = usePractitionerSearch();
@@ -52,11 +53,13 @@ function choose(professional: Professional, slot: Slot) {
 
 function closeAuth() {
   authOpen.value = false;
+  authError.value = '';
   booking.closeDialogs();
 }
 
 function authenticated() {
   authOpen.value = false;
+  authError.value = '';
   sessionError.value = '';
   booking.reload();
 }
@@ -110,6 +113,11 @@ onMounted(async () => {
   } catch (error) {
     sessionError.value = errorMessage(error);
   }
+  if (new URLSearchParams(window.location.search).get('error') === 'google') {
+    authError.value = 'La connexion avec Google a échoué. Réessayez ou utilisez votre mot de passe.';
+    authOpen.value = true;
+    window.history.replaceState(null, '', window.location.pathname);
+  }
 });
 </script>
 
@@ -158,7 +166,7 @@ onMounted(async () => {
   <AdminView v-else-if="view === 'admin'" />
   <AppFooter />
 
-  <AuthDialog v-if="authOpen" @close="closeAuth" @authenticated="authenticated" />
+  <AuthDialog v-if="authOpen" :initial-error="authError" @close="closeAuth" @authenticated="authenticated" />
   <BookingDialog
     v-else-if="booking.chosen"
     :choice="booking.chosen"

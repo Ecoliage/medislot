@@ -32,5 +32,8 @@ medislot:
   export:
     aws-access-key-id: ${EXPORT_AWS_ACCESS_KEY_ID:}
   admin-password: ${ADMIN_PASSWORD:}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
   sms:
     url: ${SMS_URL:http://localhost:8089/sms}
