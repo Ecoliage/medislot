@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi, type Mock} from 'vitest';
 import {InMemorySpanExporter, SimpleSpanProcessor} from '@opentelemetry/sdk-trace';
-import {demarrerTraces, type Tracing} from './tracing';
+import {demarrerTraces, type Tracing} from '../../src/tracing';
 
 let exporter: InMemorySpanExporter;
 let tracing: Tracing;

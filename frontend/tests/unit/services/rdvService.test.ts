@@ -1,6 +1,6 @@
 import {describe, it, expect} from 'vitest';
-import {memeCreneau} from './rdvService';
-import type {Slot} from '../types';
+import {memeCreneau} from '../../../src/services/rdvService';
+import type {Slot} from '../../../src/types';
 const creneau = (id: number, startsAt: string): Slot => ({id, professionalId: 1, startsAt, endsAt: startsAt});
 describe('memeCreneau', () => {
   it('reconnaît deux créneaux identiques', () => {

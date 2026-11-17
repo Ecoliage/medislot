@@ -1,5 +1,5 @@
 import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {api, ApiError} from './api';
+import {api, ApiError} from '../../src/api';
 describe('Front/back : statut et corps', () => {
   beforeEach(() => vi.restoreAllMocks());
   it('expose le message métier pour un conflit HTTP', async () => {
