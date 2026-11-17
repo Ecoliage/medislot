@@ -20,6 +20,6 @@ test('inscription, limite UTF-8 du mot de passe et connexion', async ({request})
   const me = await request.get('/api/me');
   expect(me.status()).toBe(200);
   expect((await me.json()).email).toBe(email);
-  const clinics = await request.get('/api/me/clinics');
-  expect((await clinics.json()).map((clinic: {slug: string}) => clinic.slug)).toEqual(['cabinet-b']);
+  expect((await request.get('/api/appointments', {headers: {'X-Clinic': 'cabinet-b'}})).status()).toBe(200);
+  expect((await request.get('/api/appointments', {headers: {'X-Clinic': 'cabinet-a'}})).status()).toBe(404);
 });

@@ -63,12 +63,13 @@ Le collecteur OpenTelemetry et la passerelle SMS n'exposent aucun port sur l'hô
 
 ## Comptes de démonstration
 
-Deux comptes patient sont créés au premier démarrage :
+Trois comptes sont créés au premier démarrage :
 
 | E-mail | Mot de passe | Cabinets |
 | --- | --- | --- |
 | `patient@medislot.test` | `MediSlot-demo-2026!` | `cabinet-a` et `cabinet-b` |
 | `autre@medislot.test` | `MediSlot-demo-2026!` | `cabinet-a` seulement |
+| `admin@medislot.test` (rôle `ADMIN`) | `MediSlot-demo-2026!` | `cabinet-a` et `cabinet-b` ; voit la liste des cabinets dans Admin |
 
 Ils sont affichés dans la fenêtre de connexion parce que l'image du front est construite avec `VITE_DEMO=true` (argument de build dans `compose.yaml`). Ils sont créés parce que `compose.yaml` fixe `DEMO_SEED=true` pour le back.
 

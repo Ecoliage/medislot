@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {createApp, type App} from 'vue';
 import {createPinia} from 'pinia';
 import {usePractitionerSearch, type PractitionerSearch} from '../../../src/composables/usePractitionerSearch';
+import {useClinic} from '../../../src/stores/clinic';
 import type {Page, Professional, Slot} from '../../../src/types';
 
 const mocks = vi.hoisted(() => ({
@@ -62,6 +63,7 @@ function mountSearch(): PractitionerSearch {
   document.body.append(host);
   const app = createApp({
     setup() {
+      useClinic(); // as App.vue does first: sets the clinic sent with every call
       search = usePractitionerSearch();
       return () => null;
     },

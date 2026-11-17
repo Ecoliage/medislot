@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type {AppView, Identity} from '../../types';
-import ClinicSwitcher from './ClinicSwitcher.vue';
 
 defineProps<{view: AppView; user: Identity | null; noticeCount: number; showNotices: boolean}>();
 const emit = defineEmits<{
@@ -21,16 +20,13 @@ const emit = defineEmits<{
       ><button :class="{active: view === 'appointments'}" @click="emit('appointments')">Mes rendez-vous</button
       ><button :class="{active: view === 'recherche'}" @click="emit('navigate', 'recherche')">Recherche avancée</button
       ><button :class="{active: view === 'espace'}" @click="emit('navigate', 'espace')">Espace patient</button
-      ><button :class="{active: view === 'admin'}" @click="emit('navigate', 'admin')">Admin</button
+      ><button v-if="user?.role === 'ADMIN'" :class="{active: view === 'admin'}" @click="emit('navigate', 'admin')">Admin</button
       ><button v-if="user" @click="emit('toggleNotices')" :aria-expanded="showNotices">
         Notifications <span class="count">{{ noticeCount }}</span></button
       ><button v-if="!user" class="login" @click="emit('login')">Se connecter</button
       ><button v-else class="login" @click="emit('logout')">{{ user.name.split(' ')[0] }} · Déconnexion</button>
     </nav>
   </header>
-  <div class="clinic-bar">
-    <ClinicSwitcher />
-  </div>
 </template>
 
 <style scoped>
@@ -42,11 +38,6 @@ const emit = defineEmits<{
   justify-content: space-between;
   background: white;
   gap: 28px;
-}
-.clinic-bar {
-  padding: 8px max(32px, calc((100vw - 1280px) / 2));
-  background: white;
-  border-top: 1px solid var(--line);
 }
 .brand-dot {
   color: #34b8b1;
@@ -92,9 +83,6 @@ const emit = defineEmits<{
   }
 }
 @media (max-width: 650px) {
-  .clinic-bar {
-    padding: 8px 18px;
-  }
   .header {
     height: auto;
     min-height: 80px;

@@ -1,15 +1,12 @@
-import {onScopeDispose, reactive, watch} from 'vue';
+import {reactive, watch} from 'vue';
 import {apiUrl} from '../api';
 import {loadNotifications} from '../services/notificationsService';
-import {useClinic} from '../stores/clinic';
 import {useSession} from '../stores/session';
 import type {Notice} from '../types';
-import {onClinicChange} from '../tenantCache';
 import {useLive} from './useLive';
 
 export function useNotifications(onChange: () => Promise<void>) {
   const session = useSession();
-  const clinic = useClinic();
   const live = useLive();
   let generation = 0;
   const state = reactive({notices: [] as Notice[], show: false});
@@ -26,9 +23,7 @@ export function useNotifications(onChange: () => Promise<void>) {
     state.notices = [];
   }
 
-  onScopeDispose(onClinicChange(clear));
-
-  watch([() => session.user, () => clinic.slug], ([user]) => {
+  watch(() => session.user, user => {
     clear();
     live.close();
     if (!user) {

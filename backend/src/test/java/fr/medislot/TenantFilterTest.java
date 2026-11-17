@@ -146,12 +146,12 @@ class TenantFilterTest {
 
   @Test
   void onlySharedPathsSkipTheClinic() throws Exception {
-    for (String shared : List.of("/api/csrf", "/api/login", "/api/me", "/api/me/clinics")) {
+    for (String shared : List.of("/api/csrf", "/api/login", "/api/me", "/api/clinics", "/api/clinics/cabinet-a")) {
       seenInChain.set(-1L);
       assertEquals(200, call(request(shared)).getStatus(), shared);
       assertNull(seenInChain.get(), shared);
     }
-    for (String scoped : List.of("/api/messages", "/api/medecins", "/api/clinic", "/api/register")) {
+    for (String scoped : List.of("/api/messages", "/api/medecins", "/api/clinic", "/api/register", "/api/me/clinics")) {
       assertEquals(400, call(request(scoped)).getStatus(), scoped);
     }
   }

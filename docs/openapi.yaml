@@ -3,7 +3,7 @@
   "info": {
     "title": "MediSlot",
     "version": "1.0.0",
-    "description": "Contrat de la correction pédagogique. Session HttpOnly et CSRF pour les écritures. Données fictives. Chaque appel porte le cabinet courant dans l'en-tête X-Clinic, sauf /csrf, /login, /logout, /me et /me/clinics."
+    "description": "Contrat de la correction pédagogique. Session HttpOnly et CSRF pour les écritures. Données fictives. Chaque appel porte le cabinet courant dans l'en-tête X-Clinic, sauf /csrf, /login, /logout, /me, /platform/clinics et /clinics."
   },
   "servers": [
     {
@@ -1170,9 +1170,10 @@
         ]
       }
     },
-    "/me/clinics": {
+    "/platform/clinics": {
       "get": {
-        "summary": "Lister ses cabinets",
+        "summary": "Lister les cabinets de la plateforme (administrateur)",
+        "description": "Réservé au rôle ADMIN, sans en-tête X-Clinic. Données servies par la vue platform_clinic : seulement des comptes agrégés par cabinet, jamais de lignes.",
         "responses": {
           "200": {
             "description": "Réponse réussie",
@@ -1181,11 +1182,289 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Clinic"
+                    "$ref": "#/components/schemas/PlatformClinic"
                   }
                 }
               }
             }
+          },
+          "401": {
+            "description": "Connexion requise"
+          },
+          "403": {
+            "description": "Rôle ADMIN requis"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/clinics": {
+      "post": {
+        "summary": "Créer un cabinet (administrateur)",
+        "description": "Réservé au rôle ADMIN, sans en-tête X-Clinic, jeton CSRF requis. Le cabinet est créé vide. Le compte de adminEmail doit exister (400 sinon) ; il devient membre du cabinet, comme l'administrateur de la plateforme qui le crée.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewClinic"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cabinet créé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Données invalides",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Connexion requise"
+          },
+          "403": {
+            "description": "Rôle ADMIN requis ou jeton CSRF absent"
+          },
+          "409": {
+            "description": "Slug déjà utilisé",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/clinics/{slug}": {
+      "get": {
+        "summary": "Lire un cabinet (administrateur)",
+        "description": "Réservé au rôle ADMIN, sans en-tête X-Clinic. Sert à pré-remplir le formulaire de modification.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Réponse réussie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Connexion requise"
+          },
+          "403": {
+            "description": "Rôle ADMIN requis"
+          },
+          "404": {
+            "description": "Cabinet introuvable"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
+      "put": {
+        "summary": "Modifier un cabinet (administrateur)",
+        "description": "Réservé au rôle ADMIN, sans en-tête X-Clinic, jeton CSRF requis. Le slug est l'adresse du cabinet (/c/<slug>/) et ne change pas : seuls le nom, la ville, l'adresse et la couleur sont modifiables.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClinicChanges"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cabinet modifié",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Données invalides",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Connexion requise"
+          },
+          "403": {
+            "description": "Rôle ADMIN requis ou jeton CSRF absent"
+          },
+          "404": {
+            "description": "Cabinet introuvable"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/clinics/{slug}/logo": {
+      "get": {
+        "summary": "Lire le logo d'un cabinet (administrateur)",
+        "description": "PNG ou SVG, servi avec Content-Security-Policy « default-src 'none'; style-src 'unsafe-inline'; sandbox » et X-Content-Type-Options: nosniff : un script dans un SVG ne s'exécute pas.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Le logo",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Connexion requise"
+          },
+          "403": {
+            "description": "Rôle ADMIN requis"
+          },
+          "404": {
+            "description": "Cabinet introuvable ou sans logo"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      },
+      "put": {
+        "summary": "Envoyer le logo d'un cabinet (administrateur)",
+        "description": "Champ multipart « file », PNG ou SVG, 200 Ko max. Le type est lu dans le contenu, pas dans le nom ni le Content-Type. Remplace le logo précédent. Jeton CSRF requis.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logo enregistré",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Fichier vide, trop lourd, ni PNG ni SVG"
+          },
+          "401": {
+            "description": "Connexion requise"
+          },
+          "403": {
+            "description": "Rôle ADMIN requis ou jeton CSRF absent"
+          },
+          "404": {
+            "description": "Cabinet introuvable"
           }
         },
         "security": [
@@ -1466,6 +1745,152 @@
           },
           "appointments": {
             "type": "integer"
+          }
+        }
+      },
+      "PlatformClinic": {
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "city",
+          "color",
+          "practitioners",
+          "appointments30d",
+          "createdAt"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-f]{6}$"
+          },
+          "practitioners": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "appointments30d": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Rendez-vous créés ces 30 derniers jours"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "NewClinic": {
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "city",
+          "color",
+          "adminEmail"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 160
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "adminEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254,
+            "description": "Compte existant, rattaché au cabinet comme premier administrateur."
+          }
+        }
+      },
+      "ClinicChanges": {
+        "type": "object",
+        "required": [
+          "name",
+          "city",
+          "color"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 160
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          }
+        }
+      },
+      "ClinicDetails": {
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "city",
+          "address",
+          "color",
+          "hasLogo"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-f]{6}$"
+          },
+          "hasLogo": {
+            "type": "boolean"
           }
         }
       }

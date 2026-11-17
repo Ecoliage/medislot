@@ -75,3 +75,20 @@ export const timeLabel = (date: string) =>
   new Intl.DateTimeFormat('fr-FR', {hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris'}).format(
     new Date(date),
   );
+export interface PlatformClinic {
+  slug: string;
+  name: string;
+  city: string;
+  color: string;
+  practitioners: number;
+  appointments30d: number;
+  createdAt: string;
+}
+export interface ClinicDetails {
+  slug: string;
+  name: string;
+  city: string;
+  address: string | null;
+  color: string;
+  hasLogo: boolean;
+}

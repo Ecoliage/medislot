@@ -31,8 +31,15 @@ abstract class PostgresTestBase {
 
   static final PostgreSQLContainer DB = new PostgreSQLContainer("postgres:18");
 
+  static final java.nio.file.Path LOGO_DIR;
+
   static {
     DB.start();
+    try {
+      LOGO_DIR = java.nio.file.Files.createTempDirectory("medislot-logos");
+    } catch (java.io.IOException e) {
+      throw new java.io.UncheckedIOException(e);
+    }
   }
 
   @DynamicPropertySource
@@ -41,6 +48,7 @@ abstract class PostgresTestBase {
     registry.add("spring.flyway.user", DB::getUsername);
     registry.add("spring.flyway.password", DB::getPassword);
     registry.add("medislot.demo-seed", () -> "true");
+    registry.add("medislot.logo-dir", () -> LOGO_DIR.toString());
   }
 
   @MockitoBean SmsGateway sms;

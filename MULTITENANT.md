@@ -7,7 +7,7 @@ Le kit de départ du TP n'a pas été utilisé : le multi-cabinet a été ajout�
 | Énoncé du TP | Dans ce dépôt |
 | --- | --- |
 | `V2__clinics.sql`, `V3__row_level_security.sql` | `V5__clinics.sql`, `V6__row_level_security.sql` (`V2` à `V4` étaient déjà prises) |
-| `stores/agenda.ts` | caches des composables `useAppointments`, `useNotifications`, `usePractitionerSearch`, vidés par `tenantCache.ts` |
+| `stores/agenda.ts` | caches des composables `useAppointments`, `useNotifications`, `usePractitionerSearch` ; le cabinet ne change qu'avec l'adresse, donc avec un rechargement de page qui les repart à vide |
 | `PostgresTestBase`, `TenantFilterTest`, `TenantIsolationTest`, `RlsDirectSqlTest`, `StatsIsolationTest` | mêmes noms, dans `backend/src/test/java/fr/medislot` |
 
 ## 1. Le modèle : une base partagée, une colonne `clinic_id`
@@ -57,9 +57,8 @@ MediSlot a peu de cabinets, de petite taille, et un même patient peut consulter
 Réponses aux questions de lecture de l'énoncé :
 
 - **Où est le filtre, et pourquoi pas un `@Component` ?** `SecurityConfig` l'ajoute à la chaîne de sécurité, après `AuthorizationFilter` : l'utilisateur est alors connu, et un 401 passe avant un 404. Déclaré en `@Component`, Spring Boot l'enregistrerait aussi dans la chaîne du conteneur, avant la sécurité : il tournerait deux fois, la première sans utilisateur.
-- **Routes sans cabinet.** `/api/csrf`, `/api/login`, `/api/login/google`, `/api/logout`, `/api/me`, `/api/me/clinics`, `/api/compte/**` et `/api/patients/**` ne touchent que des tables partagées. Sur ces routes le `TenantContext` reste vide : une lecture d'une table propre y rendrait zéro ligne.
-- **Changer de cabinet à l'écran.** `stores/clinic.ts`, `switchTo` : le slug est validé, le cabinet doit faire partie des appartenances, les caches sont vidés (`clearTenantCaches`) avant que le slug, l'en-tête et l'adresse ne changent. `afterLogin` charge les appartenances, garde le cabinet courant s'il en fait partie, sinon bascule sur le premier.
-- **Réponse en retard.** Chaque cache garde un compteur incrémenté quand il est vidé ; une réponse ne remplit le cache que si le compteur n'a pas bougé depuis la demande. Le test simule la lenteur avec une promesse qu'il ne résout qu'après le changement de cabinet.
+- **Routes sans cabinet.** `/api/csrf`, `/api/login`, `/api/login/google`, `/api/logout`, `/api/me`, `/api/clinics/**`, `/api/platform/**`, `/api/compte/**` et `/api/patients/**` ne touchent que des tables partagées. Sur ces routes le `TenantContext` reste vide : une lecture d'une table propre y rendrait zéro ligne.
+- **Changer de cabinet.** Il n'y a ni sélecteur ni bascule dans la page : on change de cabinet par l'adresse (`/c/<cabinet>/`, ou « Ouvrir » dans la liste des cabinets de l'Admin), ce qui recharge la page. Le front ne connaît pas les appartenances (`/api/me/clinics` a été retiré) : une personne connectée qui ouvre un cabinet dont elle n'est pas membre n'est plus redirigée, et chaque appel lui répond le même 404 qu'un cabinet inconnu.
 
 ## 3. La RLS
 
@@ -80,16 +79,29 @@ Résultats du 17 novembre 2026 : back `./mvnw test`, 103 tests, 0 échec, 1 igno
 | `TenantFilterTest` (9) | 400 sans cabinet ou slug mal formé, sans requête en base ; 404 pour un cabinet inconnu ; un anonyme passe ; un membre passe ; un non-membre reçoit le même 404 qu'un cabinet inconnu ; le contexte est retiré même si la requête échoue ; le paramètre `clinic` remplace l'en-tête, et un désaccord entre les deux donne 400 ; seules les routes partagées se passent de cabinet | vert |
 | `TenantIsolationTest` (12) | Deux annuaires disjoints (4 et 7 praticiens) ; un praticien de A est introuvable depuis B ; un rendez-vous pris dans A est absent de la liste, de l'export CSV, de l'historique, de la fiche, de la convocation et du calendrier de B (404) ; il ne peut être ni annulé ni déplacé depuis B ; un créneau de A ne se réserve pas depuis B ; les notifications restent dans leur cabinet ; la recherche en SQL direct et la recherche par proximité ne rendent que le cabinet courant ; une inscription ne rattache qu'au cabinet demandé | vert |
 | `RlsDirectSqlTest` (4) | En JDBC direct avec `medislot_app`, sans Spring ni Hibernate : sans variable (ou variable vide) aucune ligne n'est visible ; avec un cabinet seules ses lignes le sont, et la variable ne survit pas au commit ; insérer ou déplacer une ligne vers un autre cabinet est refusé par la politique ; la RLS est activée et forcée sur les cinq tables, et le rôle n'est ni super-utilisateur ni `BYPASSRLS` | vert (rouge sans `V6`) |
-| `StatsIsolationTest` (2) | Le défi, section 5 | vert (rouge avant correction) |
+| `StatsIsolationTest` (2) | Le défi, section 6 | vert (rouge avant correction) |
 | `tenant.test.ts` (9) | Lecture du cabinet dans le chemin et l'hôte, piège du nom d'hôte, couleur réduite à `#rrggbb` | vert |
-| `clinic.test.ts` (10) | Bascule vers un cabinet à soi seulement ; cache vidé avant la bascule ; fiche de cabinet en retard jetée ; choix du cabinet à la connexion | vert |
-| `tenantCache.test.ts` (3) | Rendez-vous et notifications vidés dès la bascule ; une réponse arrivée après le changement de cabinet ne remplit pas le cache | vert |
+| `clinic.test.ts` (3) | Cabinet lu dans l'adresse et envoyé dans l'en-tête ; adresse sans cabinet ramenée au cabinet par défaut ; fiche du cabinet courant chargée | vert |
 | `api.test.ts` (2 ajoutés) | `X-Clinic` part à chaque appel une fois le cabinet posé | vert |
-| `e2e/tenant.spec.ts` (3) | Application réelle : deux annuaires et deux couleurs ; réservation dans A, passage dans B par le sélecteur, l'adresse devient `/c/cabinet-b/`, « Mes rendez-vous » de B ne montre pas celui de A ; une personne arrivant sur un cabinet qui n'est pas le sien est ramenée chez elle | vert |
+| `e2e/tenant.spec.ts` (3) | Application réelle : deux annuaires et deux couleurs ; réservation dans A, passage dans B par l'adresse, l'adresse devient `/c/cabinet-b/`, « Mes rendez-vous » de B ne montre pas celui de A ; une personne connectée sur un cabinet qui n'est pas le sien reçoit 404 de l'API ; un administrateur voit la liste des cabinets, un patient en est refusé | à relancer |
 
 Fuite forcée, dans `e2e/tenant.spec.ts` avec la session de `patient@medislot.test` : `GET /api/appointments/{id}` du rendez-vous de A répond 200 avec `X-Clinic: cabinet-a` et **404** avec `X-Clinic: cabinet-b` ; la liste de B ne contient pas son identifiant.
 
-## 5. Défi : la fuite de `GET /api/clinic/stats`
+## 5. Liste des cabinets pour l'administration
+
+L'écran Admin affiche tous les cabinets (nom, ville, praticiens, rendez-vous créés sur 30 jours, date de création), avec recherche et filtre par ville. Il lit `GET /api/platform/clinics`, réservé au rôle `ADMIN` et sans en-tête `X-Clinic`.
+
+- **La vue `platform_clinic`** (`V7`) agrège par cabinet et ne rend que des comptes. Elle appartient au rôle `medislot_platform` (`NOLOGIN`, `NOBYPASSRLS`). Une vue s'exécute avec les droits et la RLS de son propriétaire : les politiques `platform_read`, `FOR SELECT TO medislot_platform`, lui ouvrent `professional` et `appointment` de tous les cabinets.
+- **`medislot_app` n'a que `SELECT` sur la vue.** Ses propres lectures des tables restent soumises à `clinic_isolation` : il ne voit jamais de ligne d'un autre cabinet, seulement des totaux.
+- **Compte de démonstration** : `admin@medislot.test` (rôle `ADMIN`, membre des deux cabinets pour que « Ouvrir » fonctionne).
+- **Créer et modifier un cabinet** : `ClinicController`, `POST /api/clinics` (identifiant, nom, ville, couleur) et `PUT /api/clinics/{slug}` (nom, ville, couleur), réservés au rôle `ADMIN`, sans en-tête `X-Clinic`. Dans la liste : bouton « Créer un cabinet » et « Modifier » sur chaque ligne. Un identifiant déjà pris donne 409, un cabinet inconnu 404. Le cabinet naît vide et l'administrateur qui le crée en devient membre, pour que « Ouvrir » marche tout de suite.
+- **L'identifiant ne change pas** : c'est l'adresse du cabinet (`/c/<slug>/`). `V8` donne à `medislot_app` `INSERT` sur `clinic` et `UPDATE` sur les seules colonnes `name`, `city`, `color` (table partagée, sans RLS) ; l'entité marque `slug` `updatable = false`. `V8` ajoute aussi `color` à la vue `platform_clinic`, pour pré-remplir le formulaire.
+- **Tests** : `ClinicAdminTest` (13) : création avec premier administrateur (compte existant obligatoire), 409, 400, lecture, modification sans toucher au slug, 404, logo PNG puis SVG (remplacement, en-têtes), logo refusé (type, taille), patient et anonyme refusés ; `ClinicForm.test.ts` (4).
+- **Formulaire** (`components/admin/ClinicForm.vue`, création et modification) : nom, identifiant, ville, adresse, couleur, logo et, à la création, e-mail du premier administrateur du cabinet. Ce compte doit déjà exister (400 sinon) : il devient membre du cabinet ; il n'y a pas de rôle d'administrateur par cabinet. `GET /api/clinics/{slug}` pré-remplit la modification.
+- **Logo** : `PUT /api/clinics/{slug}/logo` (multipart `file`, PNG ou SVG, 200 Ko max), lu par `GET /api/clinics/{slug}/logo`. Le type est déduit du contenu (signature PNG, racine `<svg>`). Le fichier est écrit sur disque sous `medislot.logo-dir` (`LOGO_DIR`, volume Docker `logos`), nommé d'après l'id du cabinet ; seule la colonne `logo_file` est en base (`V9`, avec `address`). Un SVG peut contenir un script : il est servi avec une CSP `sandbox` sans script et `nosniff`.
+- **Pas encore fait** : supprimer un cabinet ; afficher le logo côté patient (seul l'admin le lit aujourd'hui).
+
+## 6. Défi : la fuite de `GET /api/clinic/stats`
 
 - **La fuite.** `StatsController` rendait quatre compteurs. Trois venaient de tables propres (`professional`, `slot`, `appointment`) et étaient justes sans effort. Le quatrième, `patients`, était `users.count()` : `app_user` est une table partagée, sans `clinic_id` ni RLS, donc le compteur était celui de toute la plateforme. Un cabinet y lisait la croissance de l'autre.
 - **Le test.** `StatsIsolationTest.activityInBDoesNotMoveTheCountersReadFromA` lit les compteurs depuis A, inscrit un patient dans B et y réserve un créneau, puis relit depuis A. Sur le code d'origine il a échoué : `expected: <{patients=2, ...}> but was: <{patients=3, ...}>`.

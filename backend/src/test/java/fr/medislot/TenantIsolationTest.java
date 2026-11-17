@@ -1,6 +1,5 @@
 package fr.medislot;
 
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -14,12 +13,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import fr.medislot.repository.MembershipRepository;
+import fr.medislot.repository.UserRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 class TenantIsolationTest extends PostgresTestBase {
+  @Autowired UserRepository users;
+  @Autowired MembershipRepository memberships;
 
   @Test
   void eachClinicHasItsOwnDirectory() throws Exception {
@@ -173,8 +177,9 @@ class TenantIsolationTest extends PostgresTestBase {
                         + "\",\"name\":\"Patient de test\",\"password\":\"MediSlot-test-2026!\"}"))
         .andExpect(status().isCreated());
 
-    mvc.perform(get("/api/me/clinics").with(as(email)))
-        .andExpect(jsonPath("$[*].slug").value(contains(CLINIC_B)));
+    Long userId = users.findByEmail(email).orElseThrow().id;
+    assertTrue(memberships.existsByUserIdAndClinicId(userId, clinicId(CLINIC_B)));
+    assertFalse(memberships.existsByUserIdAndClinicId(userId, clinicId(CLINIC_A)));
     mvc.perform(get("/api/appointments").header(HEADER, CLINIC_B).with(as(email)))
         .andExpect(status().isOk());
     mvc.perform(get("/api/appointments").header(HEADER, CLINIC_A).with(as(email)))
@@ -183,10 +188,12 @@ class TenantIsolationTest extends PostgresTestBase {
 
   @Test
   void membershipsOfTheDemoAccounts() throws Exception {
-    mvc.perform(get("/api/me/clinics").with(as(PATIENT)))
-        .andExpect(jsonPath("$[*].slug").value(contains(CLINIC_A, CLINIC_B)));
-    mvc.perform(get("/api/me/clinics").with(as(OTHER)))
-        .andExpect(jsonPath("$[*].slug").value(contains(CLINIC_A)));
+    Long patient = users.findByEmail(PATIENT).orElseThrow().id;
+    Long other = users.findByEmail(OTHER).orElseThrow().id;
+    assertTrue(memberships.existsByUserIdAndClinicId(patient, clinicId(CLINIC_A)));
+    assertTrue(memberships.existsByUserIdAndClinicId(patient, clinicId(CLINIC_B)));
+    assertTrue(memberships.existsByUserIdAndClinicId(other, clinicId(CLINIC_A)));
+    assertFalse(memberships.existsByUserIdAndClinicId(other, clinicId(CLINIC_B)));
   }
 
   private static MockHttpServletRequestBuilder in(

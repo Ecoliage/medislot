@@ -24,6 +24,7 @@ services:
       DEMO_SEED: "true"
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       SMS_URL: http://sms-passerelle:8089/sms
+      LOGO_DIR: /data/logos
       JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
       OTEL_SERVICE_NAME: medislot-api
       OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4317
@@ -36,6 +37,7 @@ services:
       db: {condition: service_healthy}
       collector: {condition: service_started}
       sms-passerelle: {condition: service_started}
+    volumes: ["logos:/data/logos"]
     ports: ["127.0.0.1:18080:8080"]
   frontend:
     build:
@@ -58,3 +60,4 @@ services:
     volumes: ["./sms-passerelle/serveur.py:/srv/serveur.py:ro"]
 volumes:
   pgdata:
+  logos:

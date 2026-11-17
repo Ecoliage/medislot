@@ -13,7 +13,7 @@ import SearchView from './views/SearchView.vue';
 import AppointmentsView from './views/AppointmentsView.vue';
 import AdvancedSearchView from './views/AdvancedSearchView.vue';
 import PatientSpaceView from './views/PatientSpaceView.vue';
-import AdminView from './views/AdminView.vue';
+import ClinicView from './views/ClinicView.vue';
 import {usePractitionerSearch} from './composables/usePractitionerSearch';
 import {useAppointments} from './composables/useAppointments';
 import {useNotifications} from './composables/useNotifications';
@@ -48,14 +48,6 @@ watch(
   () => clinic.current,
   current => document.documentElement.style.setProperty('--clinic', safeColor(current?.color)),
   {immediate: true},
-);
-watch(
-  () => clinic.slug,
-  () => {
-    profile.value = null;
-    booking.moveId = null;
-    if (!clinic.current) clinic.loadCurrent().catch(() => {});
-  },
 );
 
 function leaveByHistory() {
@@ -197,7 +189,11 @@ onBeforeUnmount(() => window.removeEventListener('popstate', leaveByHistory));
   </AppointmentsView>
   <AdvancedSearchView v-else-if="view === 'recherche'" />
   <PatientSpaceView v-else-if="view === 'espace'" :onglet="ongletEspace" />
-  <AdminView v-else-if="view === 'admin'" />
+  <ClinicView v-else-if="view === 'admin' && session.user?.role === 'ADMIN'" />
+  <main v-else-if="view === 'admin'" id="main" class="main">
+    <p v-if="!session.user">Connectez-vous avec un compte administrateur pour accéder à cette page.</p>
+    <p v-else>Cette page est réservée aux administrateurs.</p>
+  </main>
   <AppFooter />
 
   <AuthDialog v-if="authOpen" :initial-error="authError" @close="closeAuth" @authenticated="authenticated" />

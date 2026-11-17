@@ -1,12 +1,8 @@
 import {api} from '../api';
-import {onClinicChange} from '../tenantCache';
 import {specialties, dateLabel, timeLabel} from '../types';
 import type {Appointment, Professional, Slot} from '../types';
 
 var cache: any = {};
-onClinicChange(() => {
-  cache = {};
-});
 
 export function libelleStatut(rdv: any, court: any, langue: any): string {
   let resultat = '';

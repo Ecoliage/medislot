@@ -18,6 +18,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class DemoData implements CommandLineRunner {
   private static final String PATIENT = "patient@medislot.test";
   private static final String OTHER = "autre@medislot.test";
+  private static final String ADMIN = "admin@medislot.test";
   private static final String CLINIC_A = "cabinet-a";
   private static final String CLINIC_B = "cabinet-b";
   private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
@@ -127,10 +128,17 @@ public class DemoData implements CommandLineRunner {
     memberships.join(camille, clinicA);
     memberships.join(camille, clinicB);
     memberships.join(alex, clinicA);
+    Long admin = user(ADMIN, "Sacha Admin", "ADMIN");
+    memberships.join(admin, clinicA);
+    memberships.join(admin, clinicB);
     return camille;
   }
 
   private Long user(String email, String name) {
+    return user(email, name, "PATIENT");
+  }
+
+  private Long user(String email, String name, String role) {
     return users
         .findByEmail(email)
         .orElseGet(
@@ -138,7 +146,7 @@ public class DemoData implements CommandLineRunner {
               AppUser u = new AppUser();
               u.email = email;
               u.name = name;
-              u.role = "PATIENT";
+              u.role = role;
               u.password = encoder.encode("MediSlot-demo-2026!");
               return users.save(u);
             })

@@ -1,10 +1,8 @@
-import {onScopeDispose, reactive, watch} from 'vue';
+import {reactive} from 'vue';
 import {ApiError} from '../api';
 import {errorMessage} from '../errors';
 import {cancelAppointment, loadAppointmentHistory, loadAppointments, saveAppointment} from '../services/appointmentsService';
-import {useClinic} from '../stores/clinic';
 import {useSession} from '../stores/session';
-import {onClinicChange} from '../tenantCache';
 import type {Appointment, AppointmentHistoryEntry, BookingChoice, Professional, Slot} from '../types';
 
 interface AppointmentActions {
@@ -16,7 +14,6 @@ interface AppointmentActions {
 
 export function useAppointments(actions: AppointmentActions) {
   const session = useSession();
-  const clinic = useClinic();
   let generation = 0;
   const state = reactive({
     appointments: [] as Appointment[],
@@ -130,8 +127,6 @@ export function useAppointments(actions: AppointmentActions) {
     state.success = '';
   }
 
-  onScopeDispose(onClinicChange(reset));
-  watch(() => clinic.slug, () => reload());
 
   return Object.assign(state, {refresh, reload, choose, confirm, cancel, move, cancelMove, showHistory, closeDialogs, reset});
 }
