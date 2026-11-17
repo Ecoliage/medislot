@@ -2,6 +2,7 @@
 import {computed, onMounted, ref} from 'vue';
 import {loadClinics} from '../../services/adminService';
 import {clinicPath} from '../../tenant';
+import {clinicsToCsv, downloadCsv} from '../../clinicCsv';
 import type {PlatformClinic} from '../../types';
 
 const clinics = ref<PlatformClinic[]>([]);
@@ -20,7 +21,11 @@ const visible = computed(() => {
   );
 });
 
-const emit = defineEmits<{create: []; edit: [slug: string]}>();
+const emit = defineEmits<{create: []; edit: [slug: string]; calendar: [slug: string]}>();
+
+function exportCsv() {
+  downloadCsv(clinicsToCsv(visible.value), `cabinets.csv`);
+}
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('fr-FR', {timeZone: 'Europe/Paris'});
@@ -41,7 +46,12 @@ onMounted(async () => {
   <section class="clinics" aria-labelledby="clinics-title">
     <div class="head">
       <h2 id="clinics-title">Cabinets ({{ clinics.length }})</h2>
-      <button class="create-button" type="button" @click="emit('create')">+ Créer un cabinet</button>
+      <div class="head-actions">
+        <button class="export-button" type="button" :disabled="loading || visible.length === 0" @click="exportCsv">
+          Exporter en CSV
+        </button>
+        <button class="create-button" type="button" @click="emit('create')">+ Créer un cabinet</button>
+      </div>
     </div>
     <div class="filters">
       <input v-model="search" type="search" placeholder="Rechercher un cabinet…" aria-label="Rechercher un cabinet" />
@@ -76,6 +86,9 @@ onMounted(async () => {
             <td>{{ formatDate(c.createdAt) }}</td>
             <td class="row-actions">
               <button class="open" type="button" :aria-label="'Modifier ' + c.name" @click="emit('edit', c.slug)">Modifier</button>
+              <button class="open" type="button" :aria-label="'Rendez-vous de ' + c.name" @click="emit('calendar', c.slug)">
+                Rendez-vous
+              </button>
               <a class="open" :href="clinicPath(c.slug)">Ouvrir</a>
             </td>
           </tr>
@@ -98,6 +111,27 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.export-button {
+  background: white;
+  color: #1e2a33;
+  border: 1px solid #1e2a33;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: 15px;
+}
+.export-button:hover:not(:disabled) {
+  background: #f0f3f5;
+}
+.export-button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 .create-button {
   background: #1e2a33;

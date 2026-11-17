@@ -1,6 +1,6 @@
 import {api} from '../api';
 import {specialties, dateLabel, timeLabel} from '../types';
-import type {Appointment, ClinicDetails, PlatformClinic} from '../types';
+import type {Appointment, CalendarEntry, ClinicDetails, ClinicPractitioner, PlatformClinic} from '../types';
 
 export async function chargerRendezVousAdmin(): Promise<any[]> {
   console.log('Chargement des rendez-vous', new Date());
@@ -111,4 +111,14 @@ export async function uploadClinicLogo(slug: string, file: File): Promise<Clinic
 
 export function clinicLogoUrl(slug: string): string {
   return '/api' + clinicPathOf(slug) + '/logo';
+}
+
+export async function loadClinicPractitioners(slug: string): Promise<ClinicPractitioner[]> {
+  return (await api<ClinicPractitioner[]>(clinicPathOf(slug) + '/professionals')) ?? [];
+}
+
+/** {@code week}: any day of the week, as YYYY-MM-DD; the server reads Monday to Sunday. */
+export async function loadPractitionerWeek(slug: string, practitionerId: number, week: string): Promise<CalendarEntry[]> {
+  const path = `${clinicPathOf(slug)}/professionals/${practitionerId}/appointments?` + new URLSearchParams({week});
+  return (await api<CalendarEntry[]>(path)) ?? [];
 }

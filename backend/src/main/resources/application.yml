@@ -36,6 +36,7 @@ medislot:
   demo-seed: ${DEMO_SEED:false}
   default-clinic: ${DEFAULT_CLINIC:cabinet-a}
   logo-dir: ${LOGO_DIR:./data/logos}
+  pseudonym-key: ${PSEUDONYM_KEY:}
   export:
     aws-access-key-id: ${EXPORT_AWS_ACCESS_KEY_ID:}
   admin-password: ${ADMIN_PASSWORD:}
