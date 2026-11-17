@@ -39,3 +39,12 @@ async function run(which: Choice) {
     <p v-if="state === 'error'" role="alert" class="error-text">{{ message }}</p>
   </div>
 </template>
+
+<style scoped>
+.convocation {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+</style>

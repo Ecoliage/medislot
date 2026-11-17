@@ -1,618 +1,202 @@
 <script setup lang="ts">
-import {ref, onMounted, watch, nextTick} from 'vue';
-import ProfessionalCard from './components/ProfessionalCard.vue';
-import RecherchePraticien from './components/RecherchePraticien.vue';
-import EspacePatient from './components/EspacePatient.vue';
-import AdminDebug from './components/AdminDebug.vue';
-import ConvocationButton from './components/ConvocationButton.vue';
-import CalendarButton from './components/CalendarButton.vue';
-import NearbyBar from './components/NearbyBar.vue';
-import NearbyMap from './components/NearbyMap.vue';
-import {nearbyParams, type Place} from './geo';
-import {api, ApiError} from './api';
+import {onMounted, ref} from 'vue';
+import AppHeader from './components/layout/AppHeader.vue';
+import AppFooter from './components/layout/AppFooter.vue';
+import FeedbackMessages from './components/ui/FeedbackMessages.vue';
+import NotificationsPanel from './components/notifications/NotificationsPanel.vue';
+import AuthDialog from './components/auth/AuthDialog.vue';
+import BookingDialog from './components/appointments/BookingDialog.vue';
+import CancelAppointmentDialog from './components/appointments/CancelAppointmentDialog.vue';
+import AppointmentHistoryDialog from './components/appointments/AppointmentHistoryDialog.vue';
+import ProfessionalDialog from './components/practitioners/ProfessionalDialog.vue';
+import SearchView from './views/SearchView.vue';
+import AppointmentsView from './views/AppointmentsView.vue';
+import AdvancedSearchView from './views/AdvancedSearchView.vue';
+import PatientSpaceView from './views/PatientSpaceView.vue';
+import AdminView from './views/AdminView.vue';
+import {usePractitionerSearch} from './composables/usePractitionerSearch';
+import {useAppointments} from './composables/useAppointments';
+import {useNotifications} from './composables/useNotifications';
 import {useSession} from './stores/session';
-import {useLive} from './composables/useLive';
-import {
-  specialties,
-  dateLabel,
-  timeLabel,
-  type Professional,
-  type Slot,
-  type Page,
-  type Appointment,
-  type Notice,
-} from './types';
-const session = useSession(),
-  live = useLive(),
-  personalLive = useLive();
-const view = ref<'search' | 'appointments' | 'recherche' | 'espace' | 'admin'>('search'),
-  ongletEspace = ref<string | undefined>(undefined),
-  loading = ref(false),
-  busy = ref(false),
-  error = ref(''),
-  success = ref('');
-const q = ref(''),
-  city = ref(''),
-  specialty = ref(''),
-  page = ref(0),
-  total = ref(0),
-  doctors = ref<Professional[]>([]),
-  place = ref<Place | null>(null),
-  RADIUS_KM = 5,
-  slots = ref<Record<number, Slot[]>>({});
-const appointments = ref<Appointment[]>([]),
-  notices = ref<Notice[]>([]),
-  showNotices = ref(false),
-  profile = ref<Professional | null>(null);
-const authOpen = ref(false),
-  register = ref(false),
-  email = ref(''),
-  password = ref(''),
-  name = ref(''),
-  authError = ref(''),
-  googleEnabled = ref(false);
-const chosen = ref<{professional: Professional; slot: Slot} | null>(null),
-  moveId = ref<number | null>(null),
-  history = ref<{action: string; label: string; createdAt: string}[] | null>(null),
-  cancelId = ref<number | null>(null);
-const modal = ref<HTMLElement | null>(null);
-let priorFocus: HTMLElement | null = null;
-function focusModal() {
-  priorFocus = document.activeElement as HTMLElement;
-  nextTick(() => modal.value?.querySelector<HTMLElement>('button,input')?.focus());
-}
-watch([authOpen, chosen, profile, history, cancelId], () => {
-  if (authOpen.value || chosen.value || profile.value || history.value || cancelId.value) focusModal();
-  else priorFocus?.focus();
-});
-function closeModal() {
-  if (busy.value) return;
-  authOpen.value = false;
-  chosen.value = null;
-  profile.value = null;
-  history.value = null;
-  cancelId.value = null;
-}
-function trap(e: KeyboardEvent) {
-  if (e.key === 'Escape') closeModal();
-  if (e.key === 'Tab' && modal.value) {
-    const a = [...modal.value.querySelectorAll<HTMLElement>('button:not([disabled]),input,select,a[href]')];
-    const first = a[0],
-      last = a[a.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last?.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first?.focus();
-    }
-  }
-}
-let searchGeneration = 0;
-async function search(reset = false) {
-  if (reset) page.value = 0;
-  const generation = ++searchGeneration;
-  loading.value = true;
-  error.value = '';
-  try {
-    const params = place.value
-      ? nearbyParams({
-          lat: place.value.lat,
-          lon: place.value.lon,
-          radiusKm: RADIUS_KM,
-          specialty: specialty.value,
-          page: page.value,
-        })
-      : new URLSearchParams({
-          q: q.value,
-          city: city.value,
-          specialty: specialty.value,
-          page: String(page.value),
-          size: '6',
-        });
-    const result = await api<Page<Professional>>('/professionals?' + params);
-    if (generation !== searchGeneration) return;
-    doctors.value = result.items;
-    total.value = result.total;
-    await loadSlots();
-  } catch (e) {
-    error.value = message(e);
-  } finally {
-    if (generation === searchGeneration) loading.value = false;
-  }
-}
-function aroundPlace(found: Place) {
-  place.value = found;
-  return search(true);
-}
-function leaveNearby() {
-  place.value = null;
-  return search(true);
-}
-async function loadSlots() {
-  const entries = await Promise.all(
-    doctors.value.map(async p => [p.id, await api<Slot[]>(`/professionals/${p.id}/slots`)] as const),
-  );
-  slots.value = Object.fromEntries(entries);
-}
-function message(e: unknown) {
-  return e instanceof TypeError
-    ? 'Connexion impossible. Vérifiez le réseau puis réessayez.'
-    : e instanceof Error
-      ? e.message
-      : 'Une erreur est survenue.';
-}
-async function refreshAppointments() {
-  if (!session.user) return;
-  appointments.value = await api<Appointment[]>('/appointments');
-}
-async function refreshNotices() {
-  if (session.user) notices.value = await api<Notice[]>('/notifications');
-}
-function choose(professional: Professional, slot: Slot) {
-  success.value = '';
-  error.value = '';
-  profile.value = null;
-  chosen.value = {professional, slot};
-  if (!session.user) {
-    authOpen.value = true;
-    authError.value = '';
-  }
-}
-async function authenticate() {
-  busy.value = true;
-  authError.value = '';
-  try {
-    if (register.value)
-      await api('/register', {
-        method: 'POST',
-        body: JSON.stringify({name: name.value, email: email.value, password: password.value}),
-      });
-    await session.login(email.value, password.value);
-    authOpen.value = false;
-    password.value = '';
-    await refreshAppointments();
-  } catch (e) {
-    authError.value = message(e);
-  } finally {
-    busy.value = false;
-  }
-}
-async function confirm() {
-  if (!chosen.value) return;
-  busy.value = true;
-  error.value = '';
-  try {
-    await api(moveId.value ? `/appointments/${moveId.value}` : '/appointments', {
-      method: moveId.value ? 'PATCH' : 'POST',
-      body: JSON.stringify({slotId: chosen.value.slot.id}),
-    });
-    success.value = moveId.value ? 'Votre rendez-vous a été déplacé.' : 'Votre rendez-vous est confirmé.';
-    chosen.value = null;
-    moveId.value = null;
-    await refreshAppointments();
-    await refreshNotices();
-    await loadSlots();
-    view.value = 'appointments';
-  } catch (e) {
-    error.value = message(e);
-    if (e instanceof ApiError && e.status === 409) {
-      chosen.value = null;
-      await loadSlots();
-    }
-  } finally {
-    busy.value = false;
-  }
-}
-async function cancel() {
-  if (cancelId.value === null) return;
-  busy.value = true;
-  try {
-    await api(`/appointments/${cancelId.value}/cancel`, {method: 'POST'});
-    cancelId.value = null;
-    success.value = 'Votre rendez-vous a été annulé.';
-    await refreshAppointments();
-    await loadSlots();
-    await refreshNotices();
-  } catch (e) {
-    error.value = message(e);
-  } finally {
-    busy.value = false;
-  }
-}
-async function move(a: Appointment) {
-  moveId.value = a.id;
-  place.value = null;
-  q.value = a.professionalName;
-  city.value = '';
-  specialty.value = '';
-  view.value = 'search';
-  await search(true);
-  success.value = 'Choisissez un nouveau créneau. Votre réservation actuelle reste conservée jusqu’à confirmation.';
-}
-async function showHistory(id: number) {
-  try {
-    history.value = await api(`/appointments/${id}/history`);
-  } catch (e) {
-    error.value = message(e);
-  }
-}
-async function logout() {
-  try {
-    await session.logout();
-    personalLive.close();
-    notices.value = [];
-    appointments.value = [];
-    showNotices.value = false;
+import {errorMessage} from './errors';
+import type {AppView, Professional, Slot} from './types';
+
+const session = useSession();
+const view = ref<AppView>('search');
+const ongletEspace = ref<string>();
+const authOpen = ref(false);
+const authError = ref('');
+const profile = ref<Professional | null>(null);
+const sessionError = ref('');
+const search = usePractitionerSearch();
+const booking = useAppointments({
+  refreshSlots: search.loadSlots,
+  refreshNotices: (): Promise<void> => notifications.refresh(),
+  onConfirmed: () => { view.value = 'appointments'; },
+  onMove: async appointment => {
     view.value = 'search';
-    moveId.value = null;
-  } catch (e) {
-    error.value = message(e);
-  }
+    await search.forProfessional(appointment.professionalName);
+  },
+});
+const notifications = useNotifications(booking.refresh);
+
+function home() {
+  view.value = 'search';
+  booking.moveId = null;
 }
-function openAuth() {
-  authOpen.value = true;
+
+function choose(professional: Professional, slot: Slot) {
+  profile.value = null;
+  booking.choose(professional, slot);
+  if (!session.user) authOpen.value = true;
+}
+
+function closeAuth() {
+  authOpen.value = false;
   authError.value = '';
-  register.value = false;
+  booking.closeDialogs();
 }
-function signInWithGoogle() {
-  window.location.assign('/oauth2/authorization/google');
+
+function authenticated() {
+  authOpen.value = false;
+  authError.value = '';
+  sessionError.value = '';
+  booking.reload();
 }
+
+async function retryFeedback() {
+  if (sessionError.value) {
+    sessionError.value = '';
+    try {
+      await session.load();
+    } catch (error) {
+      sessionError.value = errorMessage(error);
+    }
+  }
+  booking.error = '';
+  if (view.value === 'appointments') await booking.reload();
+  else await search.search();
+}
+
 function myAppointments() {
   if (!session.user) {
-    openAuth();
+    authOpen.value = true;
     return;
   }
   view.value = 'appointments';
-  refreshAppointments().catch(e => (error.value = message(e)));
+  booking.reload();
 }
-watch(
-  () => session.user,
-  user => {
-    personalLive.close();
-    if (user) {
-      refreshNotices().catch(() => {});
-      personalLive.connect(
-        '/api/notifications/events',
-        () => {
-          refreshNotices().catch(() => {});
-          refreshAppointments().catch(() => {});
-        },
-        'notifications-changed',
-      );
-    }
-  },
-);
+
+async function logout() {
+  sessionError.value = '';
+  try {
+    await session.logout();
+    booking.reset();
+    profile.value = null;
+    view.value = 'search';
+  } catch (error) {
+    sessionError.value = errorMessage(error);
+  }
+}
+
 onMounted(async () => {
-  const demande = new URLSearchParams(window.location.search).get('page');
-  if (demande == 'compte' || demande == 'profil' || demande == 'messagerie') {
-    ongletEspace.value = demande;
+  const requested = new URLSearchParams(window.location.search).get('page');
+  if (requested === 'compte' || requested === 'profil' || requested === 'messagerie') {
+    ongletEspace.value = requested;
     view.value = 'espace';
-  } else if (demande == 'admin') {
+  } else if (requested === 'admin') {
     view.value = 'admin';
   }
-  await search();
+  await search.search();
   try {
     await session.load();
-  } catch (e) {
-    error.value = message(e);
+  } catch (error) {
+    sessionError.value = errorMessage(error);
   }
   if (new URLSearchParams(window.location.search).get('error') === 'google') {
-    openAuth();
     authError.value = 'La connexion avec Google a échoué. Réessayez ou utilisez votre mot de passe.';
+    authOpen.value = true;
     window.history.replaceState(null, '', window.location.pathname);
   }
-  api<{enabled: boolean}>('/login/google')
-    .then(r => (googleEnabled.value = r.enabled))
-    .catch(() => {});
-  live.connect('/api/events', () => loadSlots().catch(() => {}));
 });
 </script>
+
 <template>
   <a href="#main" class="skip">Aller au contenu</a>
-  <header class="header">
-    <button
-      class="brand"
-      @click="
-        view = 'search';
-        moveId = null;
-      "
-    >
-      MediSlot<span class="brand-dot">.</span>
-    </button>
-    <nav aria-label="Navigation principale">
-      <button :class="{active: view === 'search'}" @click="view = 'search'">Trouver un praticien</button
-      ><button :class="{active: view === 'appointments'}" @click="myAppointments">Mes rendez-vous</button
-      ><button :class="{active: view === 'recherche'}" @click="view = 'recherche'">Recherche avancée</button
-      ><button :class="{active: view === 'espace'}" @click="view = 'espace'">Espace patient</button
-      ><button :class="{active: view === 'admin'}" @click="view = 'admin'">Admin</button
-      ><button v-if="session.user" @click="showNotices = !showNotices" :aria-expanded="showNotices">
-        Notifications <span class="count">{{ notices.length }}</span></button
-      ><button v-if="!session.user" class="login" @click="openAuth">Se connecter</button
-      ><button v-else class="login" @click="logout">{{ session.user.name.split(' ')[0] }} · Déconnexion</button>
-    </nav>
-  </header>
-  <RecherchePraticien v-if="view === 'recherche'" /><EspacePatient
-    v-else-if="view === 'espace'"
-    :onglet="ongletEspace"
-  /><AdminDebug v-else-if="view === 'admin'" />
-  <section v-if="view === 'search'" class="hero">
-    <div class="hero-inner">
-      <p class="eyebrow">VOTRE PROCHAIN RENDEZ-VOUS</p>
-      <h1>Trouvez le bon praticien.<br />Prenez un moment pour vous.</h1>
-      <p class="hero-copy">Un professionnel près de chez vous, au créneau qui vous convient.</p>
-      <form class="searchbar" @submit.prevent="search(true)">
-        <label
-          ><span>Nom du praticien</span><input v-model="q" placeholder="Nom, praticien…" autocomplete="off" /></label
-        ><label
-          ><span>Spécialité</span
-          ><select v-model="specialty">
-            <option value="">Toutes les spécialités</option>
-            <option v-for="(label, key) in specialties" :key="key" :value="key">{{ label }}</option>
-          </select></label
-        ><label
-          ><span>Ville</span><input v-model="city" placeholder="Paris, Lyon…" autocomplete="address-level2" /></label
-        ><button type="submit" :disabled="loading">
-          {{ loading ? 'Recherche…' : 'Rechercher' }} <span aria-hidden="true">→</span>
-        </button>
-      </form>
-      <NearbyBar @position="aroundPlace" />
-      <div class="hero-bottom">
-        <span>Des créneaux visibles en quelques clics</span
-        ><span class="live" :class="{offline: !live.connected.value}"
-          ><i></i>{{ live.connected.value ? 'Disponibilités en direct' : 'Reconnexion du direct…' }}</span
-        >
-      </div>
-    </div>
-  </section>
-  <main v-if="view === 'search' || view === 'appointments'" id="main" class="main">
-    <div v-if="showNotices && session.user" class="notices">
-      <div class="section-title">
-        <h2>Vos notifications</h2>
-        <button class="text-button" @click="showNotices = false">Fermer</button>
-      </div>
-      <p v-if="!notices.length">Aucune notification pour le moment.</p>
-      <p v-for="n in notices" :key="n.id">
-        {{ n.message }} <small>{{ dateLabel(n.createdAt) }}</small>
-      </p>
-    </div>
-    <p v-if="error" role="alert" class="alert error">
-      {{ error }} <button class="text-button" @click="search()">Réessayer</button>
-    </p>
-    <p v-if="success" role="status" class="alert success">{{ success }}</p>
-    <template v-if="view === 'search'"
-      ><div class="section-title">
-        <div>
-          <p class="eyebrow dark">VOTRE RECHERCHE</p>
-          <h2 v-if="place">
-            {{ total }} praticien{{ total > 1 ? 's' : '' }} à moins de {{ RADIUS_KM }} km de {{ place.label }}
-          </h2>
-          <h2 v-else>{{ total }} praticien{{ total > 1 ? 's' : '' }} à découvrir</h2>
-        </div>
-        <button v-if="place" class="text-button" @click="leaveNearby">Quitter la recherche autour de moi</button
-        ><span v-else class="subtle">Rendez-vous au cabinet</span>
-      </div>
-      <div v-if="moveId" class="move-banner">
-        Déplacement du rendez-vous n° {{ moveId }}
-        <button
-          class="text-button"
-          @click="
-            moveId = null;
-            success = '';
-          "
-        >
-          Abandonner le déplacement
-        </button>
-      </div>
-      <div v-if="loading" class="loading" role="status">Nous recherchons vos prochains créneaux…</div>
-      <div v-else-if="!doctors.length && place" class="empty">
-        <h3>Aucun praticien à moins de {{ RADIUS_KM }} km</h3>
-        <p>Essayez une autre spécialité ou une autre adresse.</p>
-        <button class="primary" @click="leaveNearby">Quitter la recherche autour de moi</button>
-      </div>
-      <div v-else-if="!doctors.length" class="empty">
-        <h3>Aucun praticien ne correspond à cette recherche</h3>
-        <p>Essayez une autre ville ou une spécialité différente.</p>
-        <button
-          class="primary"
-          @click="
-            q = '';
-            city = '';
-            specialty = '';
-            search(true);
-          "
-        >
-          Voir tous les praticiens
-        </button>
-      </div>
-      <div v-else class="results">
-        <div class="cards">
-          <ProfessionalCard
-            v-for="p in doctors"
-            :key="p.id"
-            :professional="p"
-            :slots="slots[p.id] || []"
-            @choose="choose"
-            @profile="profile = $event"
-          />
-        </div>
-        <aside class="help">
-          <span class="help-icon" aria-hidden="true">+</span>
-          <h2>Votre rendez-vous,<br />en toute simplicité.</h2>
-          <ol>
-            <li>Choisissez votre praticien.</li>
-            <li>Sélectionnez un créneau.</li>
-            <li>Retrouvez la confirmation dans votre espace.</li>
-          </ol>
-          <hr />
-          <p>Un changement de programme ? Vous pouvez déplacer ou annuler votre rendez-vous depuis votre espace.</p>
-          <p class="demo-note">Démonstration pédagogique.<br />Praticiens et données fictifs.</p>
-        </aside>
-      </div>
-      <NearbyMap
-        v-if="place && !loading && doctors.length"
-        :center="place"
-        :radius-km="RADIUS_KM"
-        :professionals="doctors"
-      />
-      <div v-if="total > 6" class="pagination">
-        <button
-          :disabled="page === 0"
-          @click="
-            page--;
-            search();
-          "
-        >
-          Précédent</button
-        ><span>Page {{ page + 1 }}</span
-        ><button
-          :disabled="(page + 1) * 6 >= total"
-          @click="
-            page++;
-            search();
-          "
-        >
-          Suivant
-        </button>
-      </div>
+  <AppHeader
+    :view="view"
+    :user="session.user"
+    :notice-count="notifications.notices.length"
+    :show-notices="notifications.show"
+    @navigate="view = $event"
+    @home="home"
+    @appointments="myAppointments"
+    @toggle-notices="notifications.show = !notifications.show"
+    @login="authOpen = true"
+    @logout="logout"
+  />
+  <SearchView
+    v-if="view === 'search'"
+    :search="search"
+    :move-id="booking.moveId"
+    @choose="choose"
+    @profile="profile = $event"
+    @cancel-move="booking.cancelMove"
+  >
+    <template #feedback>
+      <NotificationsPanel v-if="notifications.show && session.user" :notices="notifications.notices" @close="notifications.show = false" />
+      <FeedbackMessages :error="sessionError || booking.error" :success="booking.success" @retry="retryFeedback" />
     </template>
-    <template v-else
-      ><div class="section-title">
-        <div>
-          <p class="eyebrow dark">VOTRE ESPACE</p>
-          <h1>Mes rendez-vous</h1>
-        </div>
-        <span
-          ><a class="text-button" href="/api/appointments/export">Exporter en CSV</a>
-          <button class="primary" @click="view = 'search'">Prendre rendez-vous</button></span
-        >
-      </div>
-      <p v-if="!appointments.length" class="empty">Vous n’avez pas encore de rendez-vous.</p>
-      <article v-for="a in appointments" :key="a.id" class="appointment">
-        <div class="appointment-date">
-          <strong>{{ dateLabel(a.startsAt) }}</strong
-          ><span>{{ timeLabel(a.startsAt) }}</span>
-        </div>
-        <div class="appointment-person">
-          <h2>{{ a.professionalName }}</h2>
-          <p>{{ specialties[a.specialty] }} · {{ a.city }}</p>
-          <span class="status" :class="{cancelled: a.status === 'CANCELLED'}">{{
-            a.status === 'CONFIRMED' ? 'Confirmé' : 'Annulé'
-          }}</span>
-        </div>
-        <div class="appointment-actions">
-          <button v-if="a.status === 'CONFIRMED'" @click="move(a)">Déplacer</button
-          ><button v-if="a.status === 'CONFIRMED'" class="danger-link" @click="cancelId = a.id">Annuler</button>
-          <CalendarButton v-if="a.status === 'CONFIRMED'" :id="a.id" />
-          <ConvocationButton v-if="a.status === 'CONFIRMED'" :id="a.id" /><span v-else class="subtle"
-            >Convocation indisponible : rendez-vous annulé</span
-          ><button class="text-button" @click="showHistory(a.id)">Historique</button>
-        </div>
-      </article></template
-    >
-  </main>
-  <footer>
-    <span class="brand footer-brand">MediSlot.</span>
-    <p>Votre parcours de soins, simplement.</p>
-    <small>Application de formation · Données fictives · Horaires Europe/Paris</small>
-  </footer>
-  <div v-if="authOpen || chosen || profile || history || cancelId" class="overlay" @click.self="closeModal">
-    <section ref="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" @keydown="trap">
-      <button class="close" aria-label="Fermer" @click="closeModal">×</button>
-      <template v-if="authOpen"
-        ><p class="eyebrow dark">VOTRE ESPACE MEDISLOT</p>
-        <h2 id="modal-title">{{ register ? 'Créer votre compte' : 'Heureux de vous retrouver' }}</h2>
-        <p class="subtle">Connectez-vous pour confirmer et retrouver vos rendez-vous.</p>
-        <form class="auth-form" @submit.prevent="authenticate">
-          <label v-if="register">Votre nom<input v-model="name" required maxlength="120" autocomplete="name" /></label
-          ><label>Adresse e-mail<input v-model="email" type="email" required autocomplete="email" /></label
-          ><label
-            >Mot de passe<input
-              v-model="password"
-              type="password"
-              required
-              :minlength="register ? 12 : 1"
-              maxlength="72"
-              :autocomplete="register ? 'new-password' : 'current-password'"
-          /></label>
-          <p v-if="authError" role="alert" class="error-text">{{ authError }}</p>
-          <button class="primary" :disabled="busy">
-            {{ busy ? 'Connexion…' : register ? 'Créer mon compte' : 'Se connecter' }}
-          </button>
-        </form>
-        <button v-if="googleEnabled" class="google" @click="signInWithGoogle">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" viewBox="0 0 48 48">
-            <path
-              fill="#FFC107"
-              d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"
-            ></path>
-            <path
-              fill="#FF3D00"
-              d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"
-            ></path>
-            <path
-              fill="#4CAF50"
-              d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
-            ></path>
-            <path
-              fill="#1976D2"
-              d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"
-            ></path>
-          </svg>
-          Se connecter avec Google
-        </button>
-        <button class="text-button" @click="register = !register">
-          {{ register ? 'J’ai déjà un compte' : 'Créer un compte' }}
-        </button>
-        <details class="demo-credentials">
-          <summary>Compte de démonstration</summary>
-          <p>patient@medislot.test<br />MediSlot-demo-2026!</p>
-        </details></template
-      >
-      <template v-else-if="chosen"
-        ><p class="eyebrow dark">DERNIÈRE ÉTAPE</p>
-        <h2 id="modal-title">Confirmer votre rendez-vous</h2>
-        <div class="booking-summary">
-          <h3>{{ chosen.professional.name }}</h3>
-          <p>{{ specialties[chosen.professional.specialty] }}</p>
-          <strong>{{ dateLabel(chosen.slot.startsAt) }} à {{ timeLabel(chosen.slot.startsAt) }}</strong>
-          <p>{{ chosen.professional.address }}, {{ chosen.professional.city }}</p>
-        </div>
-        <p class="subtle">
-          Le créneau sera réservé après confirmation du serveur. Une autre personne peut encore le sélectionner
-          entre-temps.
-        </p>
-        <p v-if="error" class="error-text" role="alert">{{ error }}</p>
-        <button class="primary wide" :disabled="busy" @click="confirm">
-          {{ busy ? 'Confirmation…' : moveId ? 'Confirmer le déplacement' : 'Confirmer le rendez-vous' }}
-        </button></template
-      >
-      <template v-else-if="profile"
-        ><p class="eyebrow dark">VOTRE PRATICIEN</p>
-        <h2 id="modal-title">{{ profile.name }}</h2>
-        <p class="specialty">{{ specialties[profile.specialty] }}</p>
-        <p>{{ profile.bio }}</p>
-        <h3>Le cabinet</h3>
-        <p>{{ profile.address }}, {{ profile.city }}</p>
-        <h3>Consultation</h3>
-        <p>{{ profile.fee }} € · 30 minutes · Au cabinet</p>
-        <button class="primary wide" @click="profile = null">Voir les disponibilités</button></template
-      >
-      <template v-else-if="history"
-        ><h2 id="modal-title">Historique du rendez-vous</h2>
-        <ol class="timeline">
-          <li v-for="(h, i) in history" :key="i">
-            <strong>{{ h.label }}</strong>
-            <p>{{ dateLabel(h.createdAt) }} à {{ timeLabel(h.createdAt) }}</p>
-          </li>
-        </ol></template
-      >
-      <template v-else-if="cancelId"
-        ><h2 id="modal-title">Annuler ce rendez-vous ?</h2>
-        <p>Le créneau sera remis à disposition. Vous pourrez prendre un autre rendez-vous quand vous le souhaitez.</p>
-        <button class="primary wide" :disabled="busy" @click="cancel">Confirmer l’annulation</button
-        ><button class="text-button" @click="cancelId = null">Conserver mon rendez-vous</button></template
-      >
-    </section>
-  </div>
+  </SearchView>
+  <AppointmentsView
+    v-else-if="view === 'appointments'"
+    :appointments="booking.appointments"
+    @move="booking.move"
+    @cancel="booking.cancelId = $event; booking.error = ''"
+    @history="booking.showHistory"
+    @search="view = 'search'"
+  >
+    <template #feedback>
+      <NotificationsPanel v-if="notifications.show && session.user" :notices="notifications.notices" @close="notifications.show = false" />
+      <FeedbackMessages :error="sessionError || booking.error" :success="booking.success" @retry="retryFeedback" />
+    </template>
+  </AppointmentsView>
+  <AdvancedSearchView v-else-if="view === 'recherche'" />
+  <PatientSpaceView v-else-if="view === 'espace'" :onglet="ongletEspace" />
+  <AdminView v-else-if="view === 'admin'" />
+  <AppFooter />
+
+  <AuthDialog v-if="authOpen" :initial-error="authError" @close="closeAuth" @authenticated="authenticated" />
+  <BookingDialog
+    v-else-if="booking.chosen"
+    :choice="booking.chosen"
+    :moving="booking.moveId !== null"
+    :busy="booking.busy"
+    :error="booking.error"
+    @close="booking.closeDialogs"
+    @confirm="booking.confirm"
+  />
+  <ProfessionalDialog v-else-if="profile" :professional="profile" @close="profile = null" />
+  <AppointmentHistoryDialog v-else-if="booking.history" :history="booking.history" @close="booking.closeDialogs" />
+  <CancelAppointmentDialog
+    v-else-if="booking.cancelId !== null"
+    :busy="booking.busy"
+    :error="booking.error"
+    @close="booking.closeDialogs"
+    @confirm="booking.cancel"
+  />
 </template>
+
+<style scoped>
+.skip {
+  position: fixed;
+  top: -100px;
+  left: 15px;
+  background: white;
+  padding: 15px;
+  z-index: 100;
+}
+.skip:focus {
+  top: 12px;
+}
+</style>

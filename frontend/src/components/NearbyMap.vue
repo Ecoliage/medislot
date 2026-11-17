@@ -63,3 +63,18 @@ onBeforeUnmount(() => {
     aria-label="Carte des praticiens autour de votre position"
   ></div>
 </template>
+
+<style scoped>
+.nearby-map {
+  height: 380px;
+  margin-top: 28px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  overflow: hidden;
+}
+@media (max-width: 650px) {
+  .nearby-map {
+    height: 300px;
+  }
+}
+</style>

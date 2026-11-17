@@ -58,3 +58,133 @@ const initials = computed(() =>
     </div>
   </article>
 </template>
+
+<style scoped>
+.doctor-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  box-shadow: 0 3px 7px #153c5010;
+  overflow: hidden;
+}
+.doctor-info {
+  padding: 27px 24px;
+}
+.identity-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 22px;
+}
+.avatar {
+  width: 55px;
+  height: 55px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #e6f2f7;
+  color: #1373a7;
+  font-size: 19px;
+  font-weight: 700;
+}
+.name-link {
+  color: #096daa;
+  background: none;
+  text-align: left;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.name-link:hover {
+  text-decoration: underline;
+}
+.address {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 13px;
+  color: #405d70;
+}
+.price {
+  font-size: 12px;
+  color: #597487;
+}
+.availability {
+  border-left: 1px solid #e8eef3;
+  background: #fcfdfe;
+  padding: 24px 22px;
+}
+.availability-title {
+  font-size: 12px;
+  color: #4c687b;
+  font-weight: 600;
+  margin-bottom: 17px;
+}
+.days {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.day h3 {
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  text-transform: capitalize;
+  min-height: 34px;
+  text-align: center;
+  color: #355369;
+}
+.slot {
+  display: block;
+  width: 100%;
+  margin: 0 0 8px;
+  background: #e5f2fa;
+  color: #065d94;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 11px 4px;
+}
+.slot:hover {
+  background: #0873b9;
+  color: white;
+}
+.empty-small {
+  font-size: 13px;
+  color: var(--muted);
+}
+@media (max-width: 1350px) {
+  .doctor-info {
+    padding: 22px 18px;
+  }
+  .availability {
+    padding: 22px 16px;
+  }
+}
+@media (max-width: 650px) {
+  .doctor-card {
+    grid-template-columns: 1fr;
+  }
+  .availability {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .identity-row {
+    margin-bottom: 17px;
+  }
+  .day h3 {
+    min-height: 20px;
+  }
+  .slot {
+    padding: 12px;
+  }
+}
+.distance {
+  font-size: 13px;
+  font-weight: 700;
+  color: #076b9e;
+  margin-bottom: 8px;
+}
+</style>

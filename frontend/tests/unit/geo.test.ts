@@ -9,7 +9,7 @@ import {
   getPosition,
   nearbyParams,
   type GeoEnvironment,
-} from './geo';
+} from '../../src/geo';
 
 type OnSuccess = (position: GeolocationPosition) => void;
 type OnError = (error: GeolocationPositionError) => void;

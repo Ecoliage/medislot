@@ -10,6 +10,17 @@ export interface Professional {
   longitude?: number | null;
   distanceKm?: number | null;
 }
+export type ProfessionalSummary = Pick<Professional, 'id' | 'name' | 'specialty' | 'city' | 'address' | 'fee'>;
+export type AppView = 'search' | 'appointments' | 'recherche' | 'espace' | 'admin';
+export interface AppointmentHistoryEntry {
+  action: string;
+  label: string;
+  createdAt: string;
+}
+export interface BookingChoice {
+  professional: Professional;
+  slot: Slot;
+}
 export interface Slot {
   id: number;
   professionalId: number;
