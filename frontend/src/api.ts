@@ -25,7 +25,7 @@ export async function refreshCsrf() {
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method || 'GET').toUpperCase();
   const headers = new Headers(init.headers);
-  if (clinic) headers.set(CLINIC_HEADER, clinic);
+  if (clinic && !headers.has(CLINIC_HEADER)) headers.set(CLINIC_HEADER, clinic);
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     if (!csrf) await refreshCsrf();
     headers.set(csrf!.headerName, csrf!.token);

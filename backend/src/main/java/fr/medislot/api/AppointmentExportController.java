@@ -80,17 +80,26 @@ public class AppointmentExportController {
           case "CANCELLED" -> "Annule";
           default -> "Inconnu";
         };
-    String ville = p.city == null || p.city.isEmpty() ? "-" : p.city;
+    String ville = p.city == null || p.city.isEmpty() ? "-" : cellule(p.city);
     return String.join(
             ";",
             String.valueOf(a.id),
-            p.name,
-            specialite,
+            cellule(p.name),
+            cellule(specialite),
             ville,
             date,
             statut,
             tarif.toPlainString())
         + "\n";
+  }
+
+  private static String cellule(String valeur) {
+    if (valeur == null || valeur.isEmpty()) {
+      return "";
+    }
+    String texte = "=+-@\t\r".indexOf(valeur.charAt(0)) >= 0 ? "'" + valeur : valeur;
+    boolean aProteger = texte.chars().anyMatch(c -> ";\"\r\n".indexOf(c) >= 0);
+    return aProteger ? '"' + texte.replace("\"", "\"\"") + '"' : texte;
   }
 
   @GetMapping("/{id}/fiche")

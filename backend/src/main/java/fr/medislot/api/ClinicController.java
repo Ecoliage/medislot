@@ -1,8 +1,10 @@
 package fr.medislot.api;
 
+import fr.medislot.application.PlatformJournal;
 import fr.medislot.clinic.ClinicLogos;
 import fr.medislot.domain.AppUser;
 import fr.medislot.domain.Clinic;
+import fr.medislot.domain.PlatformEvent;
 import fr.medislot.repository.ClinicRepository;
 import fr.medislot.repository.UserRepository;
 import fr.medislot.tenant.ClinicMemberships;
@@ -41,16 +43,19 @@ public class ClinicController {
   private final UserRepository users;
   private final ClinicMemberships memberships;
   private final ClinicLogos logos;
+  private final PlatformJournal journal;
 
   public ClinicController(
       ClinicRepository clinics,
       UserRepository users,
       ClinicMemberships memberships,
-      ClinicLogos logos) {
+      ClinicLogos logos,
+      PlatformJournal journal) {
     this.clinics = clinics;
     this.users = users;
     this.memberships = memberships;
     this.logos = logos;
+    this.journal = journal;
   }
 
   public record ClinicDto(String slug, String name, String city, String color) {
@@ -135,22 +140,26 @@ public class ClinicController {
     users
         .findByEmail(principal.getName())
         .ifPresent(admin -> memberships.join(admin.id, clinic.id));
+    journal.record(PlatformEvent.CLINIC_CREATED, clinic, principal.getName());
     return ClinicDetails.from(clinic);
   }
 
   @PutMapping("/clinics/{slug}")
   @Transactional
-  public ClinicDetails update(@PathVariable String slug, @Valid @RequestBody ClinicChanges body) {
+  public ClinicDetails update(
+      @PathVariable String slug, @Valid @RequestBody ClinicChanges body, Principal principal) {
     Clinic clinic = find(slug);
     apply(clinic, body.name(), body.city(), body.address(), body.color());
     clinics.saveAndFlush(clinic);
+    journal.record(PlatformEvent.CLINIC_UPDATED, clinic, principal.getName());
     return ClinicDetails.from(clinic);
   }
 
   /** PNG or SVG, 200 KB max, sent as multipart field "file". Replaces the previous logo. */
   @PutMapping(value = "/clinics/{slug}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @Transactional
-  public ClinicDetails uploadLogo(@PathVariable String slug, @RequestParam("file") MultipartFile file)
+  public ClinicDetails uploadLogo(
+      @PathVariable String slug, @RequestParam("file") MultipartFile file, Principal principal)
       throws IOException {
     Clinic clinic = find(slug);
     if (file.getSize() > ClinicLogos.MAX_BYTES) {
@@ -158,6 +167,7 @@ public class ClinicController {
     }
     clinic.logoFile = logos.store(clinic.id, file.getBytes(), clinic.logoFile);
     clinics.saveAndFlush(clinic);
+    journal.record(PlatformEvent.CLINIC_LOGO_CHANGED, clinic, principal.getName());
     return ClinicDetails.from(clinic);
   }
 

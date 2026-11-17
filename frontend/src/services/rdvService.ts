@@ -1,4 +1,5 @@
 import {api} from '../api';
+import {csvCell} from '../csvCell';
 import {onClinicChange} from '../tenantCache';
 import {specialties, dateLabel, timeLabel} from '../types';
 import type {Appointment, Professional, Slot} from '../types';
@@ -54,7 +55,11 @@ export function ligneCsv(
   statut: any,
   separateur: any,
 ): string {
-  return [id, nom, specialties[specialite] || specialite, ville, date, heure, statut].join(separateur) + '\n';
+  return (
+    [id, nom, specialties[specialite] || specialite, ville, date, heure, statut]
+      .map(valeur => csvCell(valeur, separateur))
+      .join(separateur) + '\n'
+  );
 }
 
 export async function chargerRendezVous(): Promise<any[]> {

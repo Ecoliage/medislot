@@ -21,7 +21,14 @@ const visible = computed(() => {
   );
 });
 
-const emit = defineEmits<{create: []; edit: [slug: string]; calendar: [slug: string]}>();
+const emit = defineEmits<{
+  create: [];
+  edit: [slug: string];
+  calendar: [slug: string];
+  stats: [clinic: PlatformClinic];
+  logs: [clinic: PlatformClinic];
+  journal: [];
+}>();
 
 function exportCsv() {
   downloadCsv(clinicsToCsv(visible.value), `cabinets.csv`);
@@ -47,6 +54,7 @@ onMounted(async () => {
     <div class="head">
       <h2 id="clinics-title">Cabinets ({{ clinics.length }})</h2>
       <div class="head-actions">
+        <button class="open" type="button" @click="emit('journal')">Journal des administrateurs</button>
         <button class="export-button" type="button" :disabled="loading || visible.length === 0" @click="exportCsv">
           Exporter en CSV
         </button>
@@ -85,6 +93,8 @@ onMounted(async () => {
             <td>{{ c.appointments30d }}</td>
             <td>{{ formatDate(c.createdAt) }}</td>
             <td class="row-actions">
+              <button class="open" type="button" :aria-label="'Statistiques de ' + c.name" @click="emit('stats', c)">Stats</button>
+              <button class="open" type="button" :aria-label="'Journal de ' + c.name" @click="emit('logs', c)">Logs</button>
               <button class="open" type="button" :aria-label="'Modifier ' + c.name" @click="emit('edit', c.slug)">Modifier</button>
               <button class="open" type="button" :aria-label="'Rendez-vous de ' + c.name" @click="emit('calendar', c.slug)">
                 Rendez-vous
@@ -115,6 +125,7 @@ onMounted(async () => {
 .head-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
 }
 .export-button {
