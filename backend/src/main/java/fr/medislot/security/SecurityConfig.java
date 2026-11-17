@@ -79,7 +79,7 @@ public class SecurityConfig {
                         "/api/praticiens/**",
                         "/api/compte/**")
                     .permitAll()
-                    .requestMatchers("/api/debug/**", "/api/platform/**", "/api/clinics", "/api/clinics/**")
+                    .requestMatchers("/api/debug/**", "/api/platform/**", "/api/clinics", "/api/clinics/**", "/api/clinic/logs")
                     .hasRole("ADMIN")
                     .requestMatchers("/api/**")
                     .authenticated()

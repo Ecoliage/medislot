@@ -20,7 +20,7 @@ const visible = computed(() => {
   );
 });
 
-const emit = defineEmits<{create: []; edit: [slug: string]}>();
+const emit = defineEmits<{create: []; edit: [slug: string]; stats: [clinic: PlatformClinic]; logs: [clinic: PlatformClinic]}>();
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('fr-FR', {timeZone: 'Europe/Paris'});
@@ -75,6 +75,8 @@ onMounted(async () => {
             <td>{{ c.appointments30d }}</td>
             <td>{{ formatDate(c.createdAt) }}</td>
             <td class="row-actions">
+              <button class="open" type="button" :aria-label="'Statistiques de ' + c.name" @click="emit('stats', c)">Stats</button>
+              <button class="open" type="button" :aria-label="'Journal de ' + c.name" @click="emit('logs', c)">Logs</button>
               <button class="open" type="button" :aria-label="'Modifier ' + c.name" @click="emit('edit', c.slug)">Modifier</button>
               <a class="open" :href="clinicPath(c.slug)">Ouvrir</a>
             </td>

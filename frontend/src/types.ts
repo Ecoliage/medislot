@@ -84,6 +84,20 @@ export interface PlatformClinic {
   appointments30d: number;
   createdAt: string;
 }
+export interface ClinicStats {
+  patients: number;
+  practitioners: number;
+  slots: number;
+  appointments: number;
+}
+export interface ClinicLog {
+  id: number;
+  action: string;
+  label: string;
+  appointmentId: number;
+  practitioner: string;
+  createdAt: string;
+}
 export interface ClinicDetails {
   slug: string;
   name: string;

@@ -1170,6 +1170,56 @@
         ]
       }
     },
+    "/clinic/logs": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        }
+      ],
+      "get": {
+        "summary": "Lire le journal du cabinet courant : 100 derniers événements de rendez-vous (administrateur)",
+        "responses": {
+          "200": {
+            "description": "Réponse réussie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClinicLog"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Réservé aux administrateurs",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cabinet inconnu ou inaccessible",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
     "/platform/clinics": {
       "get": {
         "summary": "Lister les cabinets de la plateforme (administrateur)",
@@ -1745,6 +1795,44 @@
           },
           "appointments": {
             "type": "integer"
+          }
+        }
+      },
+      "ClinicLog": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "label",
+          "appointmentId",
+          "practitioner",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "RESCHEDULED",
+              "CANCELLED",
+              "IMPORTED"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "appointmentId": {
+            "type": "integer"
+          },
+          "practitioner": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
