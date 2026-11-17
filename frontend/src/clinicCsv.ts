@@ -1,9 +1,10 @@
+import {csvCell} from './csvCell';
 import type {PlatformClinic} from './types';
 
 const HEADER = ['Cabinet', 'Identifiant', 'Ville', 'Couleur', 'Praticiens', 'RDV (30 j)', 'Créé le'];
 
 function cell(value: string | number) {
-  return String(value);
+  return csvCell(value);
 }
 
 export function clinicsToCsv(clinics: PlatformClinic[]) {
