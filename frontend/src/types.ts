@@ -98,6 +98,15 @@ export interface ClinicLog {
   practitioner: string;
   createdAt: string;
 }
+export interface PlatformEvent {
+  id: number;
+  action: string;
+  label: string;
+  actorEmail: string;
+  clinicSlug: string;
+  clinicName: string;
+  createdAt: string;
+}
 export interface ClinicDetails {
   slug: string;
   name: string;

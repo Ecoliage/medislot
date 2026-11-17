@@ -1,6 +1,6 @@
 import {api, CLINIC_HEADER} from '../api';
 import {specialties, dateLabel, timeLabel} from '../types';
-import type {Appointment, ClinicDetails, ClinicLog, ClinicStats, PlatformClinic} from '../types';
+import type {Appointment, ClinicDetails, ClinicLog, ClinicStats, PlatformClinic, PlatformEvent} from '../types';
 
 export async function chargerRendezVousAdmin(): Promise<any[]> {
   console.log('Chargement des rendez-vous', new Date());
@@ -75,6 +75,10 @@ export async function reserverPourPatient(
 
 export async function loadClinics(): Promise<PlatformClinic[]> {
   return (await api<PlatformClinic[]>('/platform/clinics')) ?? [];
+}
+
+export async function loadPlatformEvents(): Promise<PlatformEvent[]> {
+  return (await api<PlatformEvent[]>('/platform/events')) ?? [];
 }
 
 export async function loadClinicStats(slug: string): Promise<ClinicStats> {

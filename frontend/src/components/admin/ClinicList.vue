@@ -20,7 +20,7 @@ const visible = computed(() => {
   );
 });
 
-const emit = defineEmits<{create: []; edit: [slug: string]; stats: [clinic: PlatformClinic]; logs: [clinic: PlatformClinic]}>();
+const emit = defineEmits<{create: []; edit: [slug: string]; stats: [clinic: PlatformClinic]; logs: [clinic: PlatformClinic]; journal: []}>();
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('fr-FR', {timeZone: 'Europe/Paris'});
@@ -41,7 +41,10 @@ onMounted(async () => {
   <section class="clinics" aria-labelledby="clinics-title">
     <div class="head">
       <h2 id="clinics-title">Cabinets ({{ clinics.length }})</h2>
-      <button class="create-button" type="button" @click="emit('create')">+ Créer un cabinet</button>
+      <div class="head-actions">
+        <button class="open" type="button" @click="emit('journal')">Journal des administrateurs</button>
+        <button class="create-button" type="button" @click="emit('create')">+ Créer un cabinet</button>
+      </div>
     </div>
     <div class="filters">
       <input v-model="search" type="search" placeholder="Rechercher un cabinet…" aria-label="Rechercher un cabinet" />
@@ -99,6 +102,12 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+}
+.head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
 }
 .create-button {
