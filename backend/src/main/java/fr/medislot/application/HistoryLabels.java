@@ -8,6 +8,7 @@ public final class HistoryLabels {
       case "CREATED" -> "Réservation confirmée";
       case "RESCHEDULED" -> "Rendez-vous déplacé";
       case "CANCELLED" -> "Rendez-vous annulé";
+      case "IMPORTED" -> "Rendez-vous importé";
       default -> throw new IllegalStateException("Aucun libellé pour l'action " + action);
     };
   }

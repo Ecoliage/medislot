@@ -113,8 +113,12 @@ onMounted(async () => {
   } catch (error) {
     sessionError.value = errorMessage(error);
   }
-  if (new URLSearchParams(window.location.search).get('error') === 'google') {
-    authError.value = 'La connexion avec Google a échoué. Réessayez ou utilisez votre mot de passe.';
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('error') === 'google') {
+    authError.value =
+      params.get('motif') === 'compte-local'
+        ? 'Un compte existe déjà avec cette adresse. Connectez-vous avec votre mot de passe.'
+        : 'La connexion avec Google a échoué. Réessayez ou utilisez votre mot de passe.';
     authOpen.value = true;
     window.history.replaceState(null, '', window.location.pathname);
   }

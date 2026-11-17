@@ -33,7 +33,8 @@ class GoogleUserTest {
 
   @Test
   void firstLoginCreatesAPatient() {
-    when(users.findByEmail("lea.martin@gmail.com")).thenReturn(Optional.empty());
+    when(users.findByGoogleSub("1234567890")).thenReturn(Optional.empty());
+    when(users.existsByEmail("lea.martin@gmail.com")).thenReturn(false);
     when(users.save(any())).thenAnswer(i -> i.getArgument(0));
 
     OidcUser user = service.localUser(google("Lea.Martin@gmail.com", "Léa Martin", true));
@@ -41,6 +42,7 @@ class GoogleUserTest {
     ArgumentCaptor<AppUser> saved = ArgumentCaptor.forClass(AppUser.class);
     verify(users).save(saved.capture());
     assertEquals("lea.martin@gmail.com", saved.getValue().email);
+    assertEquals("1234567890", saved.getValue().googleSub);
     assertEquals("Léa Martin", saved.getValue().name);
     assertEquals("PATIENT", saved.getValue().role);
     assertEquals("lea.martin@gmail.com", user.getName());
@@ -52,12 +54,41 @@ class GoogleUserTest {
     AppUser admin = new AppUser();
     admin.email = "admin@medislot.test";
     admin.role = "ADMIN";
-    when(users.findByEmail("admin@medislot.test")).thenReturn(Optional.of(admin));
+    admin.googleSub = "1234567890";
+    when(users.findByGoogleSub("1234567890")).thenReturn(Optional.of(admin));
 
     OidcUser user = service.localUser(google("admin@medislot.test", "Admin", true));
 
     verify(users, never()).save(any());
     assertTrue(user.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_ADMIN")));
+  }
+
+  @Test
+  void accountIsFoundBySubjectEvenWhenGoogleEmailChanged() {
+    AppUser patient = new AppUser();
+    patient.email = "lea.martin@gmail.com";
+    patient.role = "PATIENT";
+    patient.googleSub = "1234567890";
+    when(users.findByGoogleSub("1234567890")).thenReturn(Optional.of(patient));
+
+    OidcUser user = service.localUser(google("lea.dupont@gmail.com", "Léa Dupont", true));
+
+    verify(users, never()).save(any());
+    assertEquals("lea.martin@gmail.com", user.getName());
+  }
+
+  @Test
+  void localAccountWithSameEmailIsNotLinked() {
+    when(users.findByGoogleSub("1234567890")).thenReturn(Optional.empty());
+    when(users.existsByEmail("patient@medislot.test")).thenReturn(true);
+
+    OAuth2AuthenticationException refus =
+        assertThrows(
+            OAuth2AuthenticationException.class,
+            () -> service.localUser(google("patient@medislot.test", "Camille", true)));
+
+    assertEquals(UserService.LOCAL_ACCOUNT, refus.getError().getErrorCode());
+    verify(users, never()).save(any());
   }
 
   @Test
@@ -70,7 +101,7 @@ class GoogleUserTest {
 
   @Test
   void missingNameFallsBackToEmail() {
-    when(users.findByEmail("lea.martin@gmail.com")).thenReturn(Optional.empty());
+    when(users.findByGoogleSub("1234567890")).thenReturn(Optional.empty());
     when(users.save(any())).thenAnswer(i -> i.getArgument(0));
 
     service.localUser(google("lea.martin@gmail.com", null, true));

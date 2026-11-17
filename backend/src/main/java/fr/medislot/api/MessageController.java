@@ -26,6 +26,7 @@ public class MessageController {
   public record Message(Long id, Long patientId, String auteur, String contenu, Instant envoyeLe) {}
 
   private static final List<Message> MESSAGES = new CopyOnWriteArrayList<>();
+  private static final int MESSAGES_PAR_PATIENT = 200;
   private static final AtomicLong SEQUENCE = new AtomicLong();
 
   private final BookingService service;
@@ -36,14 +37,7 @@ public class MessageController {
 
   @GetMapping
   public List<Message> mesMessages(Principal principal) {
-    Long patient = service.patient(principal.getName());
-    List<Message> resultat = new ArrayList<>();
-    for (Message m : MESSAGES) {
-      if (patient.equals(m.patientId())) {
-        resultat.add(m);
-      }
-    }
-    return resultat;
+    return messagesDe(service.patient(principal.getName()));
   }
 
   @PostMapping
@@ -65,7 +59,21 @@ public class MessageController {
             "Cabinet",
             "Merci, nous avons bien reçu : " + contenu,
             Instant.now()));
+    List<Message> conserves = messagesDe(patient);
+    if (conserves.size() > MESSAGES_PAR_PATIENT) {
+      MESSAGES.removeAll(conserves.subList(0, conserves.size() - MESSAGES_PAR_PATIENT));
+    }
     return m;
+  }
+
+  private static List<Message> messagesDe(Long patient) {
+    List<Message> resultat = new ArrayList<>();
+    for (Message m : MESSAGES) {
+      if (patient.equals(m.patientId())) {
+        resultat.add(m);
+      }
+    }
+    return resultat;
   }
 
   @GetMapping(value = "/{id}/apercu", produces = MediaType.TEXT_HTML_VALUE)

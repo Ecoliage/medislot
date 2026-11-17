@@ -28,7 +28,10 @@ public class AuthController {
   public record Registration(
       @Email @NotBlank @Size(max = 254) String email,
       @NotBlank @Size(min = 12, max = 72) String password,
-      @NotBlank @Size(max = 120) String name) {}
+      @NotBlank
+          @Size(max = 120)
+          @Pattern(regexp = "\\P{Cc}*", message = "Le nom contient des caractères non autorisés.")
+          String name) {}
 
   @GetMapping("/csrf")
   public java.util.Map<String, String> csrf(CsrfToken token) {
@@ -56,14 +59,7 @@ public class AuthController {
     u.password = encoder.encode(input.password());
     u.role = "PATIENT";
     users.saveAndFlush(u);
-    log.info(
-        "Nouvel inscrit : "
-            + u.name
-            + " <"
-            + u.email
-            + "> mot de passe de "
-            + input.password().length()
-            + " caracteres");
+    log.info("Nouvel inscrit : compte {}", u.id);
     return new Identity(u.id, u.name, u.email, u.role);
   }
 }

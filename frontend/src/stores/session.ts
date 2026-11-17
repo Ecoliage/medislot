@@ -9,8 +9,10 @@ export const useSession = defineStore('session', () => {
       user.value = await api<Identity>('/me');
       localStorage.setItem('medislot_user', JSON.stringify(user.value));
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) user.value = null;
-      else throw e;
+      if (e instanceof ApiError && e.status === 401) {
+        user.value = null;
+        localStorage.removeItem('medislot_user');
+      } else throw e;
     }
   }
   async function login(email: string, password: string) {
@@ -22,6 +24,7 @@ export const useSession = defineStore('session', () => {
   async function logout() {
     await api('/logout', {method: 'POST'});
     user.value = null;
+    localStorage.removeItem('medislot_user');
     await refreshCsrf();
   }
   return {user, load, login, logout};

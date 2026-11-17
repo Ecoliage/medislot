@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class Errors {
@@ -52,6 +53,12 @@ public class Errors {
         .body(
             ProblemDetail.forStatusAndDetail(
                 HttpStatus.CONFLICT, "La demande entre en conflit avec les données actuelles."));
+  }
+
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ResponseEntity<ProblemDetail> notFound() {
+    return ResponseEntity.status(404)
+        .body(ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Ressource introuvable."));
   }
 
   @ExceptionHandler(Exception.class)

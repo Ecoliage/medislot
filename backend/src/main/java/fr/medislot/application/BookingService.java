@@ -91,7 +91,7 @@ public class BookingService {
     appointments.saveAndFlush(a);
     Span.current().setAttribute("medislot.appointment.id", a.id);
     String code = String.valueOf(100000 + hasard.nextInt(900000));
-    LOG.info("Rendez-vous confirme pour " + email + " (patient " + patient + ") code " + code);
+    LOG.info("Rendez-vous {} confirme pour le patient {}", a.id, patient);
     sms.envoyerConfirmation(patient, code);
     record(a, "CREATED", "Votre rendez-vous est confirmé. Code de confirmation : " + code);
     events.publishEvent(new BookingChanged(patient, List.of(s.professionalId)));
@@ -102,7 +102,7 @@ public class BookingService {
   public Appointment cancel(String email, Long id) {
     Appointment a = owned(id, patient(email));
     Slot s = lock(a.slotId);
-    if (a.status == "CANCELLED") return a;
+    if ("CANCELLED".equals(a.status)) return a;
     a.status = "CANCELLED";
     appointments.saveAndFlush(a);
     record(a, "CANCELLED", "Votre rendez-vous a été annulé.");

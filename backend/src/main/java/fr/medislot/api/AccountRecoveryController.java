@@ -2,9 +2,9 @@ package fr.medislot.api;
 
 import fr.medislot.domain.AppUser;
 import fr.medislot.repository.UserRepository;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,11 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -27,7 +25,10 @@ import org.springframework.web.server.ResponseStatusException;
 public class AccountRecoveryController {
 
   private static final Logger LOG = LoggerFactory.getLogger(AccountRecoveryController.class);
-  private static final Map<String, String> JETONS = new ConcurrentHashMap<>();
+  private record Jeton(String email, Instant expireLe) {}
+
+  private static final Map<String, Jeton> JETONS = new ConcurrentHashMap<>();
+  private static final Duration VALIDITE_JETON = Duration.ofMinutes(15);
   private static final String MESSAGE_NEUTRE =
       "Si un compte existe avec cette adresse, un e-mail de réinitialisation a été envoyé.";
 
@@ -44,11 +45,13 @@ public class AccountRecoveryController {
   public Map<String, Object> motDePasseOublie(@RequestBody Map<String, String> corps) {
     String email = corps.getOrDefault("email", "").strip().toLowerCase(java.util.Locale.ROOT);
     Optional<AppUser> compte = users.findByEmail(email);
+    purgerJetonsExpires();
     if (compte.isPresent()) {
       byte[] octets = new byte[32];
       hasard.nextBytes(octets);
       String jeton = HexFormat.of().formatHex(octets);
-      JETONS.put(jeton, email);
+      JETONS.values().removeIf(j -> j.email().equals(email));
+      JETONS.put(jeton, new Jeton(email, Instant.now().plus(VALIDITE_JETON)));
       LOG.info("Jeton de réinitialisation émis pour le compte {}", compte.get().id);
     }
     Map<String, Object> reponse = new LinkedHashMap<>();
@@ -66,8 +69,9 @@ public class AccountRecoveryController {
           HttpStatus.BAD_REQUEST,
           "Le mot de passe doit contenir entre 12 caractères et 72 octets.");
     }
-    String email = JETONS.remove(jeton);
-    AppUser u = email == null ? null : users.findByEmail(email).orElse(null);
+    purgerJetonsExpires();
+    Jeton valide = JETONS.remove(jeton);
+    AppUser u = valide == null ? null : users.findByEmail(valide.email()).orElse(null);
     if (u == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Jeton inconnu ou expiré.");
     }
@@ -80,11 +84,8 @@ public class AccountRecoveryController {
     return reponse;
   }
 
-  @GetMapping("/suite")
-  public void apresConnexion(
-      @RequestParam(defaultValue = "/") String next, HttpServletResponse response)
-      throws IOException {
-    boolean interne = next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\");
-    response.sendRedirect(interne ? next : "/");
+  private static void purgerJetonsExpires() {
+    Instant maintenant = Instant.now();
+    JETONS.values().removeIf(j -> j.expireLe().isBefore(maintenant));
   }
 }

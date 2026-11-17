@@ -42,7 +42,6 @@ public class DebugController {
   private final AdminBookingService adminBooking;
   private final DataSource dataSource;
   private final String adminPassword;
-  private final String exportAccessKeyId;
   private final SecureRandom hasard = new SecureRandom();
 
   public DebugController(
@@ -51,15 +50,13 @@ public class DebugController {
       UserRepository users,
       AdminBookingService adminBooking,
       DataSource dataSource,
-      @Value("${medislot.admin-password:}") String adminPassword,
-      @Value("${medislot.export.aws-access-key-id:}") String exportAccessKeyId) {
+      @Value("${medislot.admin-password:}") String adminPassword) {
     this.appointments = appointments;
     this.slots = slots;
     this.users = users;
     this.adminBooking = adminBooking;
     this.dataSource = dataSource;
     this.adminPassword = adminPassword;
-    this.exportAccessKeyId = exportAccessKeyId;
   }
 
   @GetMapping("/info")
@@ -80,7 +77,7 @@ public class DebugController {
         "utilisateurs",
         users.findAll().stream().map(u -> u.email + " / " + u.name).collect(Collectors.toList()));
     m.put("statistiques", calculerStatistiques());
-    m.put("bucketExport", "s3://medislot-exports?key=" + exportAccessKeyId);
+    m.put("bucketExport", "s3://medislot-exports");
     m.put("appels", appels);
     return m;
   }
@@ -118,15 +115,23 @@ public class DebugController {
         .findAll()
         .forEach(
             u ->
-                csv.append(u.id)
+                csv.append(cellule(u.id))
                     .append(';')
-                    .append(u.name)
+                    .append(cellule(u.name))
                     .append(';')
-                    .append(u.email)
+                    .append(cellule(u.email))
                     .append(';')
-                    .append(u.role)
+                    .append(cellule(u.role))
                     .append('\n'));
     return csv.toString();
+  }
+
+  private static String cellule(Object valeur) {
+    String texte = String.valueOf(valeur);
+    if (!texte.isEmpty() && "=+-@\t\r".indexOf(texte.charAt(0)) >= 0) {
+      texte = "'" + texte;
+    }
+    return '"' + texte.replace("\"", "\"\"") + '"';
   }
 
   @PostMapping("/reserver")

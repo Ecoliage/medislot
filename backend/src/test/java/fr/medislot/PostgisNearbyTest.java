@@ -43,6 +43,7 @@ class PostgisNearbyTest {
     registry.add("spring.datasource.url", db::getJdbcUrl);
     registry.add("spring.datasource.username", db::getUsername);
     registry.add("spring.datasource.password", db::getPassword);
+    registry.add("medislot.demo-seed", () -> "true");
   }
 
   @Autowired NearbyService service;

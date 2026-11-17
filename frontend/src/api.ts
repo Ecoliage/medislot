@@ -29,6 +29,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       const p = await response.json();
       message = p.detail || p.title || message;
     } catch {}
+    if (response.status === 429) message = 'Trop de tentatives, réessayez dans quelques minutes.';
     throw new ApiError(message, response.status);
   }
   if (response.status === 204) return undefined as T;

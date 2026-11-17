@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class UserService extends OidcUserService {
+  public static final String LOCAL_ACCOUNT = "local_account";
   private static final int NAME_MAX = 120;
 
   private final UserRepository userRepository;
@@ -47,15 +48,15 @@ public class UserService extends OidcUserService {
     String userEmail = email.toLowerCase(Locale.ROOT);
     AppUser user =
         userRepository
-            .findByEmail(userEmail)
-            .orElseGet(() -> create(userEmail, googleUser.getFullName()));
+            .findByGoogleSub(googleUser.getSubject())
+            .orElseGet(() -> create(userEmail, googleUser.getSubject(), googleUser.getFullName()));
 
     Set<GrantedAuthority> authorities = new HashSet<>(googleUser.getAuthorities());
     authorities.add(new SimpleGrantedAuthority("ROLE_" + user.role));
 
     OidcIdToken token = googleUser.getIdToken();
     Map<String, Object> claims = new HashMap<>(token.getClaims());
-    claims.put("email", userEmail);
+    claims.put("email", user.email);
     return new DefaultOidcUser(
         authorities,
         new OidcIdToken(token.getTokenValue(), token.getIssuedAt(), token.getExpiresAt(), claims),
@@ -63,10 +64,15 @@ public class UserService extends OidcUserService {
         "email");
   }
 
-  private AppUser create(String email, String fullName) {
+  private AppUser create(String email, String sub, String fullName) {
+    if (userRepository.existsByEmail(email)) {
+      throw new OAuth2AuthenticationException(
+          new OAuth2Error(LOCAL_ACCOUNT), "Un compte local existe déjà avec cette adresse email");
+    }
     String name = fullName == null || fullName.isBlank() ? email : fullName.strip();
     AppUser user = new AppUser();
     user.email = email;
+    user.googleSub = sub;
     user.name = name.length() > NAME_MAX ? name.substring(0, NAME_MAX) : name;
     user.role = "PATIENT";
     user.password = passwordEncoder.encode(UUID.randomUUID().toString());

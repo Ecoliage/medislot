@@ -50,6 +50,20 @@ describe('AuthDialog', () => {
     expect(googleButton()).toBeUndefined();
   });
 
+  it('masque le compte de démonstration hors mode démo', async () => {
+    stubGoogleAvailability(false);
+    await mountDialog();
+    expect(document.querySelector('.demo-credentials')).toBeNull();
+  });
+
+  it('affiche le compte de démonstration en mode démo', async () => {
+    vi.stubEnv('VITE_DEMO', 'true');
+    stubGoogleAvailability(false);
+    await mountDialog();
+    expect(document.querySelector('.demo-credentials')?.textContent).toContain('patient@medislot.test');
+    vi.unstubAllEnvs();
+  });
+
   it('affiche l’erreur transmise à l’ouverture', async () => {
     stubGoogleAvailability(false);
     await mountDialog({initialError: 'La connexion avec Google a échoué.'});

@@ -4,14 +4,18 @@ import fr.medislot.application.*;
 import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.event.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 public class EventController {
   private record Subscriber(SseEmitter emitter, Long patient) {}
+
+  private static final int MAX_PUBLIC_SUBSCRIBERS = 500;
 
   private final Set<Subscriber> clients = ConcurrentHashMap.newKeySet();
   private final BookingService booking;
@@ -22,6 +26,9 @@ public class EventController {
 
   @GetMapping(value = "/api/events", produces = "text/event-stream")
   public SseEmitter publicEvents() {
+    if (clients.stream().filter(s -> s.patient == null).count() >= MAX_PUBLIC_SUBSCRIBERS)
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "Trop de connexions en cours, réessayez plus tard.");
     return connect(null);
   }
 
