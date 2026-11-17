@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {ref} from 'vue';
-import MonProfil from './MonProfil.vue';
-import Messagerie from './Messagerie.vue';
-import ConnexionAvancee from './ConnexionAvancee.vue';
+import MonProfil from '../components/MonProfil.vue';
+import Messagerie from '../components/Messagerie.vue';
+import ConnexionAvancee from '../components/ConnexionAvancee.vue';
 import {useSession} from '../stores/session';
 
 const props = defineProps<{onglet?: string}>();

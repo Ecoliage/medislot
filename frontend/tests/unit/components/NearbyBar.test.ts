@@ -1,7 +1,7 @@
 import {describe, expect, it, vi} from 'vitest';
 import {createApp, nextTick} from 'vue';
-import NearbyBar from './components/NearbyBar.vue';
-import {GEO_MESSAGES, GeoError, type Coordinates, type Place} from './geo';
+import NearbyBar from '../../../src/components/NearbyBar.vue';
+import {GEO_MESSAGES, GeoError, type Coordinates, type Place} from '../../../src/geo';
 
 type Locate = () => Promise<Coordinates>;
 type Geocoder = (address: string) => Promise<Place>;
