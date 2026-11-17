@@ -1,5 +1,6 @@
 package fr.medislot;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -194,6 +195,10 @@ class TenantIsolationTest extends PostgresTestBase {
     assertTrue(memberships.existsByUserIdAndClinicId(patient, clinicId(CLINIC_B)));
     assertTrue(memberships.existsByUserIdAndClinicId(other, clinicId(CLINIC_A)));
     assertFalse(memberships.existsByUserIdAndClinicId(other, clinicId(CLINIC_B)));
+    mvc.perform(get("/api/me/clinics").with(as(PATIENT)))
+        .andExpect(jsonPath("$[*].slug").value(contains(CLINIC_A, CLINIC_B)));
+    mvc.perform(get("/api/me/clinics").with(as(OTHER)))
+        .andExpect(jsonPath("$[*].slug").value(contains(CLINIC_A)));
   }
 
   private static MockHttpServletRequestBuilder in(

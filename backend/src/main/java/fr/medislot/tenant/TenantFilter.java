@@ -33,7 +33,8 @@ public class TenantFilter extends OncePerRequestFilter {
           "/api/login/google",
           "/api/logout",
           "/api/me",
-          "/api/clinics");
+          "/api/clinics",
+          "/api/me/clinics");
   private static final Set<String> SHARED_PREFIXES = Set.of("/api/compte/", "/api/patients/", "/api/platform/", "/api/clinics/");
 
   private final ClinicRepository clinics;

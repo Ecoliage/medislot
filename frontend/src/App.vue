@@ -49,6 +49,14 @@ watch(
   current => document.documentElement.style.setProperty('--clinic', safeColor(current?.color)),
   {immediate: true},
 );
+watch(
+  () => clinic.slug,
+  () => {
+    profile.value = null;
+    booking.moveId = null;
+    if (!clinic.current) clinic.loadCurrent().catch(() => {});
+  },
+);
 
 function leaveByHistory() {
   window.location.reload();
