@@ -2,7 +2,7 @@ import {test, expect} from '@playwright/test';
 
 test('inscription, limite UTF-8 du mot de passe et connexion', async ({request}) => {
   const csrf = await (await request.get('/api/csrf')).json();
-  const headers = {[csrf.headerName]: csrf.token};
+  const headers = {[csrf.headerName]: csrf.token, 'X-Clinic': 'cabinet-b'};
   const email = `test-${Date.now()}@medislot.test`;
   const invalid = await request.post('/api/register', {
     headers,
@@ -20,4 +20,6 @@ test('inscription, limite UTF-8 du mot de passe et connexion', async ({request})
   const me = await request.get('/api/me');
   expect(me.status()).toBe(200);
   expect((await me.json()).email).toBe(email);
+  const clinics = await request.get('/api/me/clinics');
+  expect((await clinics.json()).map((clinic: {slug: string}) => clinic.slug)).toEqual(['cabinet-b']);
 });

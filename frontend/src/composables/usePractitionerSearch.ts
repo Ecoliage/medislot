@@ -1,12 +1,16 @@
-import {onBeforeUnmount, onMounted, reactive} from 'vue';
+import {onBeforeUnmount, onMounted, onScopeDispose, reactive, watch} from 'vue';
+import {apiUrl} from '../api';
 import {errorMessage} from '../errors';
 import type {Place} from '../geo';
 import {loadProfessionalSlots, searchProfessionals} from '../services/practitionersService';
+import {useClinic} from '../stores/clinic';
+import {onClinicChange} from '../tenantCache';
 import type {Professional, Slot} from '../types';
 import {useLive} from './useLive';
 
 export function usePractitionerSearch() {
   const live = useLive();
+  const clinic = useClinic();
   let generation = 0;
   let slotGeneration = 0;
   const state = reactive({
@@ -81,7 +85,26 @@ export function usePractitionerSearch() {
     return search(true);
   }
 
-  onMounted(() => live.connect('/api/events', () => loadSlots().catch(() => {})));
+  function clear() {
+    generation++;
+    slotGeneration++;
+    state.doctors = [];
+    state.slots = {};
+    state.total = 0;
+    state.page = 0;
+    state.place = null;
+  }
+
+  function connectLive() {
+    live.connect(apiUrl('/events'), () => loadSlots().catch(() => {}));
+  }
+
+  onScopeDispose(onClinicChange(clear));
+  watch(() => clinic.slug, () => {
+    connectLive();
+    search(true);
+  });
+  onMounted(connectLive);
   onBeforeUnmount(() => {
     generation++;
     slotGeneration++;

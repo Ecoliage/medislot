@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted, ref} from 'vue';
+import {onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import AppHeader from './components/layout/AppHeader.vue';
 import AppFooter from './components/layout/AppFooter.vue';
 import FeedbackMessages from './components/ui/FeedbackMessages.vue';
@@ -17,10 +17,14 @@ import AdminView from './views/AdminView.vue';
 import {usePractitionerSearch} from './composables/usePractitionerSearch';
 import {useAppointments} from './composables/useAppointments';
 import {useNotifications} from './composables/useNotifications';
+import {useClinic} from './stores/clinic';
 import {useSession} from './stores/session';
+import {safeColor} from './tenant';
 import {errorMessage} from './errors';
 import type {AppView, Professional, Slot} from './types';
 
+const clinic = useClinic();
+clinic.init();
 const session = useSession();
 const view = ref<AppView>('search');
 const ongletEspace = ref<string>();
@@ -39,6 +43,24 @@ const booking = useAppointments({
   },
 });
 const notifications = useNotifications(booking.refresh);
+
+watch(
+  () => clinic.current,
+  current => document.documentElement.style.setProperty('--clinic', safeColor(current?.color)),
+  {immediate: true},
+);
+watch(
+  () => clinic.slug,
+  () => {
+    profile.value = null;
+    booking.moveId = null;
+    if (!clinic.current) clinic.loadCurrent().catch(() => {});
+  },
+);
+
+function leaveByHistory() {
+  window.location.reload();
+}
 
 function home() {
   view.value = 'search';
@@ -107,12 +129,18 @@ onMounted(async () => {
   } else if (requested === 'admin') {
     view.value = 'admin';
   }
-  await search.search();
+  window.addEventListener('popstate', leaveByHistory);
   try {
     await session.load();
   } catch (error) {
     sessionError.value = errorMessage(error);
   }
+  if (!clinic.current) {
+    clinic.loadCurrent().catch(error => {
+      sessionError.value = errorMessage(error);
+    });
+  }
+  await search.search();
   const params = new URLSearchParams(window.location.search);
   if (params.get('error') === 'google') {
     authError.value =
@@ -123,6 +151,8 @@ onMounted(async () => {
     window.history.replaceState(null, '', window.location.pathname);
   }
 });
+
+onBeforeUnmount(() => window.removeEventListener('popstate', leaveByHistory));
 </script>
 
 <template>

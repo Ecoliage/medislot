@@ -18,6 +18,7 @@ services:
     environment:
       DATABASE_URL: jdbc:postgresql://db:5432/medislot
       DB_PASSWORD: ${DB_PASSWORD:-medislot-local-only}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-medislot-app-local-only}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       DEMO_SEED: "true"

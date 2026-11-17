@@ -2,7 +2,9 @@ package fr.medislot.repository;
 
 import fr.medislot.domain.Slot;
 import org.springframework.data.jpa.repository.*;
+import org.springframework.transaction.annotation.Transactional;
 
+@Transactional(readOnly = true)
 public interface SlotRepository extends JpaRepository<Slot, Long> {
   @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
   @Query("select s from Slot s where s.id=:id")

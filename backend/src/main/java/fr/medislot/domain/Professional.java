@@ -9,6 +9,10 @@ public class Professional {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   public Long id;
 
+  @org.hibernate.annotations.TenantId
+  @Column(name = "clinic_id")
+  public Long clinicId;
+
   @Override
   public boolean equals(Object o) {
     Professional autre = (Professional) o;

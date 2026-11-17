@@ -1,6 +1,7 @@
 package fr.medislot.api;
 
 import fr.medislot.application.BookingService;
+import fr.medislot.tenant.TenantContext;
 import java.security.Principal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,7 +24,8 @@ import org.springframework.web.util.HtmlUtils;
 @RequestMapping("/api/messages")
 public class MessageController {
 
-  public record Message(Long id, Long patientId, String auteur, String contenu, Instant envoyeLe) {}
+  public record Message(
+      Long id, Long clinicId, Long patientId, String auteur, String contenu, Instant envoyeLe) {}
 
   private static final List<Message> MESSAGES = new CopyOnWriteArrayList<>();
   private static final int MESSAGES_PAR_PATIENT = 200;
@@ -43,6 +45,7 @@ public class MessageController {
   @PostMapping
   public Message envoyer(Principal principal, @RequestBody Map<String, String> corps) {
     Long patient = service.patient(principal.getName());
+    Long clinic = TenantContext.require();
     String contenu = corps.getOrDefault("contenu", "").strip();
     if (contenu.isEmpty() || contenu.length() > 2000) {
       throw new ResponseStatusException(
@@ -50,11 +53,17 @@ public class MessageController {
     }
     Message m =
         new Message(
-            SEQUENCE.incrementAndGet(), patient, principal.getName(), contenu, Instant.now());
+            SEQUENCE.incrementAndGet(),
+            clinic,
+            patient,
+            principal.getName(),
+            contenu,
+            Instant.now());
     MESSAGES.add(m);
     MESSAGES.add(
         new Message(
             SEQUENCE.incrementAndGet(),
+            clinic,
             patient,
             "Cabinet",
             "Merci, nous avons bien reçu : " + contenu,
@@ -68,8 +77,9 @@ public class MessageController {
 
   private static List<Message> messagesDe(Long patient) {
     List<Message> resultat = new ArrayList<>();
+    Long clinic = TenantContext.require();
     for (Message m : MESSAGES) {
-      if (patient.equals(m.patientId())) {
+      if (clinic.equals(m.clinicId()) && patient.equals(m.patientId())) {
         resultat.add(m);
       }
     }
@@ -79,8 +89,9 @@ public class MessageController {
   @GetMapping(value = "/{id}/apercu", produces = MediaType.TEXT_HTML_VALUE)
   public String apercu(@PathVariable Long id, Principal principal) {
     Long patient = service.patient(principal.getName());
+    Long clinic = TenantContext.require();
     for (Message m : MESSAGES) {
-      if (m.id().equals(id) && patient.equals(m.patientId())) {
+      if (m.id().equals(id) && clinic.equals(m.clinicId()) && patient.equals(m.patientId())) {
         return "<html><body><h1>Message de "
             + HtmlUtils.htmlEscape(m.auteur())
             + "</h1><div>"

@@ -12,26 +12,8 @@ import fr.medislot.geo.NearbyService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
-@SpringBootTest
-@Testcontainers
-class NearbyPostgresTest {
-
-  @Container static PostgreSQLContainer db = new PostgreSQLContainer("postgres:18");
-
-  @DynamicPropertySource
-  static void database(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", db::getJdbcUrl);
-    registry.add("spring.datasource.username", db::getUsername);
-    registry.add("spring.datasource.password", db::getPassword);
-    registry.add("medislot.demo-seed", () -> "true");
-  }
+class NearbyPostgresTest extends PostgresTestBase {
 
   @Autowired NearbyService service;
 
@@ -40,6 +22,7 @@ class NearbyPostgresTest {
   @Test
   void bellecourWithinFiveKilometresFindsSixPractitionersByDistance() {
     assertTrue(finder instanceof BoxNearbyFinder);
+    enter(CLINIC_B);
 
     NearbyPage page =
         service.search(
@@ -51,6 +34,7 @@ class NearbyPostgresTest {
 
   @Test
   void middleOfTheOceanFindsNobody() {
+    enter(CLINIC_B);
     NearbyPage page = service.search(NearbyQuery.of(0.0, 0.0, 5.0, "", 0, 6));
 
     assertTrue(page.items().isEmpty());
@@ -59,6 +43,7 @@ class NearbyPostgresTest {
 
   @Test
   void parisFindsItsPractitioners() {
+    enter(CLINIC_A);
     NearbyPage page =
         service.search(
             NearbyQuery.of(GeoFixtures.PARIS_LAT, GeoFixtures.PARIS_LON, 5.0, "", 0, 50));

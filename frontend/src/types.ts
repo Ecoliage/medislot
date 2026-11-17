@@ -44,6 +44,12 @@ export interface Identity {
   email: string;
   role: string;
 }
+export interface Clinic {
+  slug: string;
+  name: string;
+  city: string;
+  color: string;
+}
 export interface Page<T> {
   items: T[];
   page: number;

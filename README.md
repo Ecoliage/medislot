@@ -36,7 +36,9 @@ curl http://localhost:18080/actuator/health
 
 La réponse attendue est `{"groups":["liveness","readiness"],"status":"UP"}`. Ouvre ensuite http://localhost:8088.
 
-Au premier démarrage sur une base vide, Flyway applique `V1`, `V2` et `V4` (la `V3` n'existe que pour PostGIS), puis les données de démonstration sont créées : 11 praticiens, leurs créneaux des dix prochains jours et deux comptes.
+Au premier démarrage sur une base vide, Flyway applique `V1`, `V2`, `V4`, `V5` et `V6` (la `V3` n'existe que pour PostGIS), puis les données de démonstration sont créées : deux cabinets, 11 praticiens (4 dans `cabinet-a`, 7 dans `cabinet-b`), leurs créneaux des dix prochains jours et deux comptes.
+
+L'adresse http://localhost:8088 redirige vers le cabinet par défaut, http://localhost:8088/c/cabinet-a/. L'autre cabinet est sur http://localhost:8088/c/cabinet-b/.
 
 Pour lire les journaux du back :
 
@@ -54,7 +56,7 @@ Tous les ports sont publiés sur 127.0.0.1 uniquement.
 | --- | --- | --- |
 | Front (Nginx) | http://localhost:8088 | Application ; relaie `/api`, `/oauth2` et `/login/oauth2` vers le back et `/otlp/` vers le collecteur |
 | Back (Spring Boot) | http://localhost:18080 | API directe, `GET /actuator/health` |
-| PostgreSQL | `localhost:55432` | Base `medislot`, utilisateur `medislot` (et non 5432) |
+| PostgreSQL | `localhost:55432` | Base `medislot` (et non 5432). `medislot` possède le schéma et joue les migrations, `medislot_app` est le rôle de l'application, soumis à la RLS |
 | Jaeger | http://localhost:16686 | Traces, service `medislot-api` |
 
 Le collecteur OpenTelemetry et la passerelle SMS n'exposent aucun port sur l'hôte. Dans le navigateur, passe toujours par le port 8088.
@@ -63,10 +65,10 @@ Le collecteur OpenTelemetry et la passerelle SMS n'exposent aucun port sur l'hô
 
 Deux comptes patient sont créés au premier démarrage :
 
-| E-mail | Mot de passe |
-| --- | --- |
-| `patient@medislot.test` | `MediSlot-demo-2026!` |
-| `autre@medislot.test` | `MediSlot-demo-2026!` |
+| E-mail | Mot de passe | Cabinets |
+| --- | --- | --- |
+| `patient@medislot.test` | `MediSlot-demo-2026!` | `cabinet-a` et `cabinet-b` |
+| `autre@medislot.test` | `MediSlot-demo-2026!` | `cabinet-a` seulement |
 
 Ils sont affichés dans la fenêtre de connexion parce que l'image du front est construite avec `VITE_DEMO=true` (argument de build dans `compose.yaml`). Ils sont créés parce que `compose.yaml` fixe `DEMO_SEED=true` pour le back.
 
@@ -91,7 +93,8 @@ Variables lues par `compose.yaml` :
 
 | Variable | Rôle | Valeur par défaut |
 | --- | --- | --- |
-| `DB_PASSWORD` | Mot de passe de PostgreSQL et du back | `medislot-local-only` |
+| `DB_PASSWORD` | Mot de passe du rôle `medislot` (PostgreSQL et migrations Flyway) | `medislot-local-only` |
+| `APP_DB_PASSWORD` | Mot de passe du rôle `medislot_app`, fixé par la migration `V5` puis utilisé par le back | `medislot-app-local-only` |
 | `GOOGLE_CLIENT_ID` | Identifiant client OAuth Google | vide (connexion Google désactivée) |
 | `GOOGLE_CLIENT_SECRET` | Secret client OAuth Google | vide |
 | `COOKIE_SECURE` | Attribut `Secure` du cookie de session | `false` dans Compose |
@@ -111,8 +114,10 @@ Variables lues par le back lui-même (`backend/src/main/resources/application.ym
 | --- | --- | --- |
 | `PORT` | Port d'écoute | `8080` |
 | `DATABASE_URL` | URL JDBC | `jdbc:postgresql://localhost:5432/medislot` |
-| `DB_USER` | Utilisateur PostgreSQL | `medislot` |
-| `DB_PASSWORD` | Mot de passe PostgreSQL | `medislot-local-only` |
+| `DB_USER` | Rôle qui joue les migrations Flyway | `medislot` |
+| `DB_PASSWORD` | Mot de passe de ce rôle | `medislot-local-only` |
+| `APP_DB_PASSWORD` | Mot de passe de `medislot_app`, le rôle sous lequel le back lit et écrit | `medislot-app-local-only` |
+| `DEFAULT_CLINIC` | Cabinet rejoint par un compte créé à la première connexion Google | `cabinet-a` |
 | `DEMO_SEED` | Données de démonstration | `false` |
 | `COOKIE_SECURE` | Cookie de session `Secure` | `true` (à laisser tel quel derrière HTTPS) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Connexion Google | vides |
@@ -129,6 +134,19 @@ Variables lues par le build et par les outils :
 | `JAEGER_URL` | URL de Jaeger visée par `e2e/trace.spec.ts` et `tests/verifier_traces.sh` | `http://localhost:16686` |
 
 Le cookie de session n'est envoyé que sur HTTPS quand `COOKIE_SECURE=true`. Avec Compose en HTTP sur `localhost`, laisse `false`. Derrière un domaine public en HTTPS, passe-le à `true`.
+
+## Cabinets
+
+MediSlot sert plusieurs cabinets dans une seule base. Le cabinet courant se lit dans l'adresse (`/c/<cabinet>/`, ou le sous-domaine `<cabinet>.medislot.test`), le front l'envoie à chaque appel dans l'en-tête `X-Clinic`, le back vérifie que la personne connectée en est membre, et PostgreSQL filtre les lignes par RLS. Sans cabinet, l'API répond 400 ; pour un cabinet inconnu ou dont on n'est pas membre, 404.
+
+```
+curl -H 'X-Clinic: cabinet-a' 'http://localhost:8088/api/professionals?size=2'
+curl -H 'X-Clinic: cabinet-b' http://localhost:8088/api/clinic
+```
+
+Le choix du modèle, les tables propres et partagées, les tests d'isolation et les limites sont décrits dans [MULTITENANT.md](MULTITENANT.md).
+
+Changer `APP_DB_PASSWORD` après le premier démarrage ne suffit pas : la migration `V5` qui fixe le mot de passe ne se rejoue pas. Repars d'une base vide (`docker compose down -v`) ou change le mot de passe du rôle à la main (`ALTER ROLE medislot_app PASSWORD '...'`).
 
 ## Connexion avec Google
 
@@ -182,7 +200,7 @@ La première commande doit répondre `{"enabled":true}`. La seconde doit affiche
 
 ### Comportement du compte
 
-- Une première connexion Google crée un compte avec le rôle `PATIENT` (nom et adresse repris du profil Google). Les connexions suivantes retrouvent le compte par l'identifiant Google (`google_sub`).
+- Une première connexion Google crée un compte avec le rôle `PATIENT` (nom et adresse repris du profil Google) et le rattache au cabinet `DEFAULT_CLINIC`. Les connexions suivantes retrouvent le compte par l'identifiant Google (`google_sub`).
 - Si l'adresse e-mail Google correspond déjà à un compte local (créé par inscription ou par le seed), la connexion Google est refusée : il n'y a pas de fusion automatique. L'utilisateur est renvoyé sur l'application avec un message lui demandant de se connecter avec son mot de passe.
 - Toute autre erreur Google (consentement refusé, état invalide) renvoie vers `/?error=google` avec un message générique.
 - Changer son adresse e-mail dans le profil demande le mot de passe actuel.
@@ -202,7 +220,7 @@ Pour calculer la recherche par proximité avec PostGIS plutôt qu'avec une boît
 docker compose -f compose.yaml -f compose.postgis.yaml up -d --build
 ```
 
-Ce fichier remplace l'image de la base par `postgis/postgis:18-3.6` (déclarée en `linux/amd64`, donc émulée sur un Mac à puce Apple) et active le profil Spring `postgis`, qui ajoute la migration `V3__postgis.sql` (colonne `location` indexée en GiST). Sur une base vide, Flyway applique alors `V1`, `V2`, `V3` puis `V4`. Un volume créé avec l'image PostgreSQL standard ne doit pas être réutilisé : lance d'abord `docker compose down -v`.
+Ce fichier remplace l'image de la base par `postgis/postgis:18-3.6` (déclarée en `linux/amd64`, donc émulée sur un Mac à puce Apple) et active le profil Spring `postgis`, qui ajoute la migration `V3__postgis.sql` (colonne `location` indexée en GiST). Sur une base vide, Flyway applique alors `V1`, `V2`, `V3`, `V4`, `V5` puis `V6`. Un volume créé avec l'image PostgreSQL standard ne doit pas être réutilisé : lance d'abord `docker compose down -v`.
 
 ## Développement local
 
@@ -238,7 +256,7 @@ cd backend
 ./mvnw verify
 ```
 
-La suite compte 76 tests, dont un volontairement désactivé (`@Disabled` dans `BookingIntegrationTest`), et dure une vingtaine de secondes une fois les images de test téléchargées. Le JAR est produit dans `backend/target/medislot.jar`.
+La suite compte 103 tests, dont un volontairement désactivé (`@Disabled` dans `BookingIntegrationTest`), et dure une vingtaine de secondes une fois les images de test téléchargées. Le JAR est produit dans `backend/target/medislot.jar`.
 
 **Front, tests unitaires et build :**
 
@@ -249,7 +267,7 @@ npm test
 npm run build
 ```
 
-`npm test` lance Vitest (57 tests réussis, 1 ignoré, c'est le test de panne réseau de `api.test.ts` en `it.skip`). `npm run build` vérifie les types avec `vue-tsc` puis construit `frontend/dist`.
+`npm test` lance Vitest (81 tests réussis, 1 ignoré, c'est le test de panne réseau de `api.test.ts` en `it.skip`). `npm run build` vérifie les types avec `vue-tsc` puis construit `frontend/dist`.
 
 **Bout en bout (Playwright).** La pile Compose doit tourner ; les tests visent http://localhost:8088 et Jaeger sur http://localhost:16686 :
 
@@ -258,7 +276,7 @@ cd frontend
 npm run test:e2e
 ```
 
-Playwright a besoin d'un navigateur Chromium installé (`npx playwright install chromium` si ce n'est pas déjà fait). Les quatre scénarios couvrent la réservation, le contrat OpenAPI, l'inscription et la propagation des traces. Si tu as remappé les ports, passe les adresses : `APP_URL=http://localhost:28088 JAEGER_URL=http://localhost:26686 npm run test:e2e`.
+Playwright a besoin d'un navigateur Chromium installé (`npx playwright install chromium` si ce n'est pas déjà fait). Les sept scénarios couvrent la réservation, le contrat OpenAPI, l'inscription, la propagation des traces et l'isolation des cabinets (`tenant.spec.ts`). Si tu as remappé les ports, passe les adresses : `APP_URL=http://localhost:28088 JAEGER_URL=http://localhost:26686 npm run test:e2e`.
 
 **Scripts de `tests/`.** Ils visent la pile Compose démarrée et se lancent depuis la racine :
 

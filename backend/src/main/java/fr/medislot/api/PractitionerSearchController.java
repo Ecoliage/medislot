@@ -9,7 +9,9 @@ import java.util.regex.Pattern;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import fr.medislot.tenant.TenantContext;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,6 +32,7 @@ public class PractitionerSearchController {
   }
 
   @GetMapping("/recherche")
+  @Transactional(readOnly = true)
   public List<Map<String, Object>> rechercher(
       @RequestParam(defaultValue = "") String nom,
       @RequestParam(required = false) String ville,
@@ -41,8 +44,9 @@ public class PractitionerSearchController {
     }
     StringBuilder sql =
         new StringBuilder(
-            "SELECT id, name, specialty, city, address, fee FROM professional WHERE lower(name) LIKE ?");
+            "SELECT id, name, specialty, city, address, fee FROM professional WHERE clinic_id = ? AND lower(name) LIKE ?");
     List<Object> params = new ArrayList<>();
+    params.add(TenantContext.require());
     params.add("%" + nom.toLowerCase() + "%");
     if (ville != null && !ville.isBlank()) {
       sql.append(" AND lower(city) = ?");

@@ -3,7 +3,7 @@
   "info": {
     "title": "MediSlot",
     "version": "1.0.0",
-    "description": "Contrat de la correction pédagogique. Session HttpOnly et CSRF pour les écritures. Données fictives."
+    "description": "Contrat de la correction pédagogique. Session HttpOnly et CSRF pour les écritures. Données fictives. Chaque appel porte le cabinet courant dans l'en-tête X-Clinic, sauf /csrf, /login, /logout, /me et /me/clinics."
   },
   "servers": [
     {
@@ -133,7 +133,12 @@
           }
         ],
         "description": "Sans lat ni lon, recherche textuelle (q, city, specialty) triée par nom puis id. Avec lat et lon, recherche par proximité : les professionnels situés dans le rayon sont triés par distance croissante, q et city sont alors ignorés, specialty reste appliqué, et la réponse porte Cache-Control: no-store. lat et lon vont toujours ensemble."
-      }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        }
+      ]
     },
     "/professionals/{id}": {
       "get": {
@@ -162,6 +167,9 @@
         }
       },
       "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        },
         {
           "name": "id",
           "in": "path",
@@ -203,6 +211,9 @@
         }
       },
       "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        },
         {
           "name": "id",
           "in": "path",
@@ -395,7 +406,12 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        }
+      ]
     },
     "/appointments/{id}": {
       "get": {
@@ -531,6 +547,9 @@
       },
       "parameters": [
         {
+          "$ref": "#/components/parameters/Clinic"
+        },
+        {
           "name": "id",
           "in": "path",
           "required": true,
@@ -605,6 +624,9 @@
       },
       "parameters": [
         {
+          "$ref": "#/components/parameters/Clinic"
+        },
+        {
           "name": "id",
           "in": "path",
           "required": true,
@@ -661,6 +683,9 @@
       },
       "parameters": [
         {
+          "$ref": "#/components/parameters/Clinic"
+        },
+        {
           "name": "id",
           "in": "path",
           "required": true,
@@ -704,7 +729,12 @@
             "session": []
           }
         ]
-      }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        }
+      ]
     },
     "/logout": {
       "post": {
@@ -830,7 +860,12 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        }
+      ]
     },
     "/login": {
       "post": {
@@ -911,7 +946,12 @@
             }
           }
         }
-      }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        }
+      ]
     },
     "/notifications/events": {
       "get": {
@@ -944,7 +984,12 @@
             "session": []
           }
         ]
-      }
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        }
+      ]
     },
     "/appointments/{id}/convocation.pdf": {
       "get": {
@@ -1044,6 +1089,9 @@
       },
       "parameters": [
         {
+          "$ref": "#/components/parameters/Clinic"
+        },
+        {
           "name": "id",
           "in": "path",
           "required": true,
@@ -1052,6 +1100,100 @@
           }
         }
       ]
+    },
+    "/clinic": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        }
+      ],
+      "get": {
+        "summary": "Lire le cabinet courant",
+        "responses": {
+          "200": {
+            "description": "Réponse réussie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Clinic"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cabinet inconnu ou inaccessible",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clinic/stats": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Clinic"
+        }
+      ],
+      "get": {
+        "summary": "Lire les compteurs du cabinet courant",
+        "responses": {
+          "200": {
+            "description": "Réponse réussie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClinicStats"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cabinet inconnu ou inaccessible",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
+    },
+    "/me/clinics": {
+      "get": {
+        "summary": "Lister ses cabinets",
+        "responses": {
+          "200": {
+            "description": "Réponse réussie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Clinic"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1279,6 +1421,53 @@
             "format": "date-time"
           }
         }
+      },
+      "Clinic": {
+        "type": "object",
+        "required": [
+          "slug",
+          "name",
+          "city",
+          "color"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-f]{6}$"
+          }
+        }
+      },
+      "ClinicStats": {
+        "type": "object",
+        "required": [
+          "patients",
+          "practitioners",
+          "slots",
+          "appointments"
+        ],
+        "properties": {
+          "patients": {
+            "type": "integer"
+          },
+          "practitioners": {
+            "type": "integer"
+          },
+          "slots": {
+            "type": "integer"
+          },
+          "appointments": {
+            "type": "integer"
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -1286,6 +1475,20 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "JSESSIONID"
+      }
+    },
+    "parameters": {
+      "Clinic": {
+        "name": "X-Clinic",
+        "in": "header",
+        "required": true,
+        "description": "Slug du cabinet courant. Le paramètre de requête clinic le remplace là où un en-tête ne peut pas être envoyé (flux d'événements, liens de téléchargement). Absent ou mal formé : 400. Cabinet inconnu ou dont la personne connectée n'est pas membre : 404.",
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "maxLength": 40
+        },
+        "example": "cabinet-a"
       }
     }
   }

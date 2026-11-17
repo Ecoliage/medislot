@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {ref, onMounted} from 'vue';
+import {apiUrl} from '../api';
 import {
   lireInfosDebug,
   reserverPourPatient,
@@ -67,8 +68,8 @@ onMounted(() => {
       <button class="primary" type="submit">Afficher les informations</button>
     </form>
     <p>
-      <a href="/api/debug/patients.csv" target="_blank" rel="noopener">Exporter tous les patients (CSV)</a> ·
-      <a href="/api/debug/db-ping" target="_blank" rel="noopener">Test base</a>
+      <a :href="apiUrl('/debug/patients.csv')" target="_blank" rel="noopener">Exporter tous les patients (CSV)</a> ·
+      <a :href="apiUrl('/debug/db-ping')" target="_blank" rel="noopener">Test base</a>
     </p>
     <h2>Calculatrice de tarif</h2>
     <form class="auth-form" @submit.prevent="calculer">

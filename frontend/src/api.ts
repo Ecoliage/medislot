@@ -1,4 +1,13 @@
 let csrf: {token: string; headerName: string} | null = null;
+let clinic: string | null = null;
+export const CLINIC_HEADER = 'X-Clinic';
+export function setApiClinic(slug: string | null) {
+  clinic = slug;
+}
+export function apiUrl(path: string): string {
+  if (!clinic) return '/api' + path;
+  return '/api' + path + (path.includes('?') ? '&' : '?') + 'clinic=' + encodeURIComponent(clinic);
+}
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -16,6 +25,7 @@ export async function refreshCsrf() {
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method || 'GET').toUpperCase();
   const headers = new Headers(init.headers);
+  if (clinic) headers.set(CLINIC_HEADER, clinic);
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     if (!csrf) await refreshCsrf();
     headers.set(csrf!.headerName, csrf!.token);

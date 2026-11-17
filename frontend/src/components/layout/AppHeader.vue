@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {AppView, Identity} from '../../types';
+import ClinicSwitcher from './ClinicSwitcher.vue';
 
 defineProps<{view: AppView; user: Identity | null; noticeCount: number; showNotices: boolean}>();
 const emit = defineEmits<{
@@ -27,6 +28,9 @@ const emit = defineEmits<{
       ><button v-else class="login" @click="emit('logout')">{{ user.name.split(' ')[0] }} · Déconnexion</button>
     </nav>
   </header>
+  <div class="clinic-bar">
+    <ClinicSwitcher />
+  </div>
 </template>
 
 <style scoped>
@@ -38,6 +42,11 @@ const emit = defineEmits<{
   justify-content: space-between;
   background: white;
   gap: 28px;
+}
+.clinic-bar {
+  padding: 8px max(32px, calc((100vw - 1280px) / 2));
+  background: white;
+  border-top: 1px solid var(--line);
 }
 .brand-dot {
   color: #34b8b1;
@@ -83,6 +92,9 @@ const emit = defineEmits<{
   }
 }
 @media (max-width: 650px) {
+  .clinic-bar {
+    padding: 8px 18px;
+  }
   .header {
     height: auto;
     min-height: 80px;

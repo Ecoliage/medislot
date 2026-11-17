@@ -2,6 +2,7 @@ package fr.medislot.geo;
 
 import fr.medislot.domain.Professional;
 import fr.medislot.repository.ProfessionalRepository;
+import fr.medislot.tenant.TenantContext;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +23,7 @@ public class PostgisNearbyFinder implements NearbyFinder {
             FROM professional,
                  (SELECT ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography AS point) AS origin
             WHERE ST_DWithin(location, origin.point, :radiusMeters)
+              AND clinic_id = :clinic
               AND (:specialty = '' OR specialty = :specialty)
             """;
 
@@ -41,6 +43,7 @@ public class PostgisNearbyFinder implements NearbyFinder {
     params.addValue("lon", query.lon());
     params.addValue("radiusMeters", query.radiusKm() * 1000);
     params.addValue("specialty", query.specialty());
+    params.addValue("clinic", TenantContext.require());
 
     Map<Long, Double> distances = new HashMap<>();
     jdbc.query(

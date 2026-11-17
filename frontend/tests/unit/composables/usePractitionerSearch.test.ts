@@ -1,5 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {createApp, type App} from 'vue';
+import {createPinia} from 'pinia';
 import {usePractitionerSearch, type PractitionerSearch} from '../../../src/composables/usePractitionerSearch';
 import type {Page, Professional, Slot} from '../../../src/types';
 
@@ -65,6 +66,7 @@ function mountSearch(): PractitionerSearch {
       return () => null;
     },
   });
+  app.use(createPinia());
   apps.push(app);
   app.mount(host);
   return search;
@@ -136,7 +138,7 @@ describe('usePractitionerSearch', () => {
     const onChange = mocks.connect.mock.calls[0][1] as () => Promise<void>;
     await onChange();
 
-    expect(mocks.connect.mock.calls[0][0]).toBe('/api/events');
+    expect(mocks.connect.mock.calls[0][0]).toBe('/api/events?clinic=cabinet-a');
     expect(search.slots).toEqual({1: [slot(11, 1)]});
     expect(search.doctors).toEqual([doctor]);
     expect(mocks.searchProfessionals).toHaveBeenCalledTimes(1);

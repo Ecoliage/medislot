@@ -1,6 +1,9 @@
 package fr.medislot.security;
 
+import fr.medislot.repository.ClinicRepository;
+import fr.medislot.repository.MembershipRepository;
 import fr.medislot.repository.UserRepository;
+import fr.medislot.tenant.TenantFilter;
 import jakarta.servlet.DispatcherType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +20,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
@@ -50,10 +54,15 @@ public class SecurityConfig {
   SecurityFilterChain filter(
       HttpSecurity http,
       UserService googleUsers,
+      ClinicRepository clinics,
+      UserRepository accounts,
+      MembershipRepository memberships,
       ObjectProvider<ClientRegistrationRepository> googleClient)
       throws Exception {
     LoginThrottle throttle = new LoginThrottle(java.time.Clock.systemUTC());
     http.addFilterBefore(throttle, UsernamePasswordAuthenticationFilter.class);
+    http.addFilterAfter(
+        new TenantFilter(clinics, accounts, memberships), AuthorizationFilter.class);
     http.authorizeHttpRequests(
             a ->
                 a.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
@@ -63,6 +72,7 @@ public class SecurityConfig {
                         "/api/register",
                         "/api/login",
                         "/api/login/google",
+                        "/api/clinic",
                         "/api/professionals/**",
                         "/api/events",
                         "/actuator/health",
