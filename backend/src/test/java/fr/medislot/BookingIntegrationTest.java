@@ -28,6 +28,7 @@ class BookingIntegrationTest {
     r.add("spring.datasource.url", db::getJdbcUrl);
     r.add("spring.datasource.username", db::getUsername);
     r.add("spring.datasource.password", db::getPassword);
+    r.add("medislot.demo-seed", () -> "true");
   }
 
   @MockitoBean SmsGateway sms;

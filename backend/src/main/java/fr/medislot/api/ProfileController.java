@@ -2,9 +2,12 @@ package fr.medislot.api;
 
 import fr.medislot.domain.AppUser;
 import fr.medislot.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,6 +19,13 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,12 +47,20 @@ public class ProfileController {
   public record Profil(Long id, String name, String email, String role) {}
 
   public record Modification(
-      @NotBlank @Size(max = 120) String name, @Email @NotBlank @Size(max = 254) String email) {}
+      @NotBlank
+          @Size(max = 120)
+          @Pattern(regexp = "\\P{Cc}*", message = "Le nom contient des caractères non autorisés.")
+          String name,
+      @Email @NotBlank @Size(max = 254) String email,
+      String currentPassword) {}
 
   private final UserRepository users;
+  private final PasswordEncoder encoder;
+  private final SecurityContextRepository sessions = new HttpSessionSecurityContextRepository();
 
-  public ProfileController(UserRepository users) {
+  public ProfileController(UserRepository users, PasswordEncoder encoder) {
     this.users = users;
+    this.encoder = encoder;
   }
 
   @GetMapping("/{id}")
@@ -53,12 +71,48 @@ public class ProfileController {
 
   @PutMapping("/{id}")
   public Profil modifier(
-      @PathVariable Long id, @Valid @RequestBody Modification maj, Principal principal) {
+      @PathVariable Long id,
+      @Valid @RequestBody Modification maj,
+      Principal principal,
+      HttpServletRequest request,
+      HttpServletResponse response) {
     AppUser u = compteDe(id, principal);
+    String email = maj.email().strip().toLowerCase(java.util.Locale.ROOT);
+    boolean changementEmail = !email.equals(u.email);
+    if (changementEmail) {
+      verifierMotDePasse(u, maj.currentPassword());
+    }
     u.name = maj.name().strip();
-    u.email = maj.email().strip().toLowerCase(java.util.Locale.ROOT);
+    u.email = email;
     users.save(u);
+    if (changementEmail) {
+      suivreNouvelleAdresse(u, request, response);
+    }
     return new Profil(u.id, u.name, u.email, u.role);
+  }
+
+  private void verifierMotDePasse(AppUser u, String motDePasse) {
+    if (u.googleSub != null) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "L'adresse d'un compte Google ne peut pas être modifiée.");
+    }
+    if (motDePasse == null || motDePasse.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Le mot de passe actuel est requis pour changer d'adresse.");
+    }
+    if (!encoder.matches(motDePasse, u.password)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mot de passe actuel incorrect.");
+    }
+  }
+
+  private void suivreNouvelleAdresse(
+      AppUser u, HttpServletRequest request, HttpServletResponse response) {
+    SecurityContext contexte = SecurityContextHolder.createEmptyContext();
+    contexte.setAuthentication(
+        UsernamePasswordAuthenticationToken.authenticated(
+            u.email, null, AuthorityUtils.createAuthorityList("ROLE_" + u.role)));
+    SecurityContextHolder.setContext(contexte);
+    sessions.saveContext(contexte, request, response);
   }
 
   @PostMapping("/{id}/avatar")

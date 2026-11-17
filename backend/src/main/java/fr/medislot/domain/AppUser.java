@@ -13,4 +13,5 @@ public class AppUser {
   public String password;
   public String name;
   public String role;
+  public String googleSub;
 }

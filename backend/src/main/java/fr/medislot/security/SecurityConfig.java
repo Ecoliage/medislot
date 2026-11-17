@@ -15,7 +15,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
@@ -50,6 +52,8 @@ public class SecurityConfig {
       UserService googleUsers,
       ObjectProvider<ClientRegistrationRepository> googleClient)
       throws Exception {
+    LoginThrottle throttle = new LoginThrottle(java.time.Clock.systemUTC());
+    http.addFilterBefore(throttle, UsernamePasswordAuthenticationFilter.class);
     http.authorizeHttpRequests(
             a ->
                 a.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
@@ -75,11 +79,16 @@ public class SecurityConfig {
         .formLogin(
             f ->
                 f.loginProcessingUrl("/api/login")
-                    .successHandler((req, res, auth) -> res.setStatus(204))
+                    .successHandler(
+                        (req, res, auth) -> {
+                          throttle.succeeded(req);
+                          res.setStatus(204);
+                        })
                     .failureHandler(
                         (req, res, ex) -> {
+                          throttle.failed(req);
                           res.setStatus(401);
-                          res.setContentType("application/problem+json");
+                          res.setContentType("application/problem+json;charset=UTF-8");
                           res.getWriter()
                               .write("{\"title\":\"Identifiants incorrects\",\"status\":401}");
                         }))
@@ -92,13 +101,13 @@ public class SecurityConfig {
                 e.authenticationEntryPoint(
                         (req, res, ex) -> {
                           res.setStatus(401);
-                          res.setContentType("application/problem+json");
+                          res.setContentType("application/problem+json;charset=UTF-8");
                           res.getWriter().write("{\"title\":\"Connexion requise\",\"status\":401}");
                         })
                     .accessDeniedHandler(
                         (req, res, ex) -> {
                           res.setStatus(403);
-                          res.setContentType("application/problem+json");
+                          res.setContentType("application/problem+json;charset=UTF-8");
                           res.getWriter()
                               .write(
                                   "{\"title\":\"Action refusée ou jeton CSRF expiré\",\"status\":403}");
@@ -111,7 +120,12 @@ public class SecurityConfig {
                   .failureHandler(
                       (req, res, ex) -> {
                         log.warn("Connexion Google refusée : {}", ex.getMessage());
-                        res.sendRedirect("/?error=google");
+                        if (ex instanceof OAuth2AuthenticationException e
+                            && UserService.LOCAL_ACCOUNT.equals(e.getError().getErrorCode())) {
+                          res.sendRedirect("/?error=google&motif=compte-local");
+                        } else {
+                          res.sendRedirect("/?error=google");
+                        }
                       }));
     }
     return http.build();
