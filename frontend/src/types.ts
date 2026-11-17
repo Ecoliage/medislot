@@ -115,3 +115,15 @@ export interface ClinicDetails {
   color: string;
   hasLogo: boolean;
 }
+export interface ClinicPractitioner {
+  id: number;
+  name: string;
+  specialty: string;
+}
+/** An appointment as platform administrators see it: the patient is only a pseudonym. */
+export interface CalendarEntry {
+  id: number;
+  startsAt: string;
+  patient: string;
+  status: string;
+}

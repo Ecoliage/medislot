@@ -7,7 +7,7 @@ Le kit de départ du TP n'a pas été utilisé : le multi-cabinet a été ajout�
 | Énoncé du TP | Dans ce dépôt |
 | --- | --- |
 | `V2__clinics.sql`, `V3__row_level_security.sql` | `V5__clinics.sql`, `V6__row_level_security.sql` (`V2` à `V4` étaient déjà prises) |
-| `stores/agenda.ts` | caches des composables `useAppointments`, `useNotifications`, `usePractitionerSearch` ; le cabinet ne change qu'avec l'adresse, donc avec un rechargement de page qui les repart à vide |
+| `stores/agenda.ts` | caches des composables `useAppointments`, `useNotifications`, `usePractitionerSearch` et de `rdvService`, vidés par `tenantCache.ts` avant chaque bascule |
 | `PostgresTestBase`, `TenantFilterTest`, `TenantIsolationTest`, `RlsDirectSqlTest`, `StatsIsolationTest` | mêmes noms, dans `backend/src/test/java/fr/medislot` |
 
 ## 1. Le modèle : une base partagée, une colonne `clinic_id`
@@ -57,8 +57,8 @@ MediSlot a peu de cabinets, de petite taille, et un même patient peut consulter
 Réponses aux questions de lecture de l'énoncé :
 
 - **Où est le filtre, et pourquoi pas un `@Component` ?** `SecurityConfig` l'ajoute à la chaîne de sécurité, après `AuthorizationFilter` : l'utilisateur est alors connu, et un 401 passe avant un 404. Déclaré en `@Component`, Spring Boot l'enregistrerait aussi dans la chaîne du conteneur, avant la sécurité : il tournerait deux fois, la première sans utilisateur.
-- **Routes sans cabinet.** `/api/csrf`, `/api/login`, `/api/login/google`, `/api/logout`, `/api/me`, `/api/clinics/**`, `/api/platform/**`, `/api/compte/**` et `/api/patients/**` ne touchent que des tables partagées. Sur ces routes le `TenantContext` reste vide : une lecture d'une table propre y rendrait zéro ligne.
-- **Changer de cabinet.** Il n'y a ni sélecteur ni bascule dans la page : on change de cabinet par l'adresse (`/c/<cabinet>/`, ou « Ouvrir » dans la liste des cabinets de l'Admin), ce qui recharge la page. Le front ne connaît pas les appartenances (`/api/me/clinics` a été retiré) : une personne connectée qui ouvre un cabinet dont elle n'est pas membre n'est plus redirigée, et chaque appel lui répond le même 404 qu'un cabinet inconnu.
+- **Routes sans cabinet.** `/api/csrf`, `/api/login`, `/api/login/google`, `/api/logout`, `/api/me`, `/api/me/clinics`, `/api/clinics/**`, `/api/platform/**`, `/api/compte/**` et `/api/patients/**` ne touchent que des tables partagées. Sur ces routes le `TenantContext` reste vide : une lecture d'une table propre y rendrait zéro ligne.
+- **Changer de cabinet.** `ClinicSwitcher` (sous l'en-tête) liste les cabinets de la personne connectée, lus par `GET /api/me/clinics`. `switchTo` refuse un slug invalide ou qui n'est pas dans cette liste, vide les caches (`clearTenantCaches`) **avant** de changer de cabinet, pose le nouveau slug pour `X-Clinic` puis fait `history.pushState` vers `/c/<cabinet>/`, sans rechargement. Chaque cache a un compteur de génération incrémenté au vidage : une réponse demandée avant la bascule et arrivée après est jetée. À la connexion, `afterLogin` charge les appartenances, garde le cabinet courant s'il en fait partie, sinon bascule sur le premier : une personne qui ouvre l'adresse d'un cabinet qui n'est pas le sien est ramenée chez elle. Le bouton « Ouvrir » de la liste Admin passe toujours par l'adresse.
 
 ## 3. La RLS
 
@@ -72,7 +72,7 @@ Vérifié en retirant `V6` : les quatre tests de `RlsDirectSqlTest` deviennent r
 
 ## 4. Preuves
 
-Résultats du 17 novembre 2026 : back `./mvnw test`, 103 tests, 0 échec, 1 ignoré (un test de réservation déjà désactivé avant ce TP). Front `npm test`, 81 réussis, 1 ignoré (déjà en `it.skip`) ; `npm run build` sans erreur. Bout en bout `npm run test:e2e` sur une pile Compose neuve, 7 réussis.
+Résultats du 17 novembre 2026 : back `./mvnw test`, 120 tests, 0 échec, 1 ignoré (un test de réservation déjà désactivé avant ce TP). Front `npm test`, 85 réussis, 1 ignoré (déjà en `it.skip`) ; `npm run build` sans erreur. Bout en bout `npm run test:e2e` : non relancé après le retour du sélecteur.
 
 | Test | Ce qu'il prouve | Résultat |
 | --- | --- | --- |
@@ -81,7 +81,8 @@ Résultats du 17 novembre 2026 : back `./mvnw test`, 103 tests, 0 échec, 1 igno
 | `RlsDirectSqlTest` (4) | En JDBC direct avec `medislot_app`, sans Spring ni Hibernate : sans variable (ou variable vide) aucune ligne n'est visible ; avec un cabinet seules ses lignes le sont, et la variable ne survit pas au commit ; insérer ou déplacer une ligne vers un autre cabinet est refusé par la politique ; la RLS est activée et forcée sur les cinq tables, et le rôle n'est ni super-utilisateur ni `BYPASSRLS` | vert (rouge sans `V6`) |
 | `StatsIsolationTest` (2) | Le défi, section 6 | vert (rouge avant correction) |
 | `tenant.test.ts` (9) | Lecture du cabinet dans le chemin et l'hôte, piège du nom d'hôte, couleur réduite à `#rrggbb` | vert |
-| `clinic.test.ts` (3) | Cabinet lu dans l'adresse et envoyé dans l'en-tête ; adresse sans cabinet ramenée au cabinet par défaut ; fiche du cabinet courant chargée | vert |
+| `clinic.test.ts` | Cabinet lu dans l'adresse et envoyé dans l'en-tête ; `switchTo` vide le cache avant de basculer, refuse un cabinet qui n'est pas à soi, met à jour l'adresse ; une réponse arrivée après la bascule est jetée ; `afterLogin` garde le cabinet courant ou bascule sur le premier | vert |
+| `tenantCache.test.ts` | Les caches des composables sont vidés à la bascule, et une réponse en retard ne les remplit pas | vert |
 | `api.test.ts` (2 ajoutés) | `X-Clinic` part à chaque appel une fois le cabinet posé | vert |
 | `e2e/tenant.spec.ts` (3) | Application réelle : deux annuaires et deux couleurs ; réservation dans A, passage dans B par l'adresse, l'adresse devient `/c/cabinet-b/`, « Mes rendez-vous » de B ne montre pas celui de A ; une personne connectée sur un cabinet qui n'est pas le sien reçoit 404 de l'API ; un administrateur voit la liste des cabinets, un patient en est refusé | à relancer |
 
@@ -118,7 +119,7 @@ L'écran Admin affiche tous les cabinets (nom, ville, praticiens, rendez-vous cr
 - **État en mémoire.** La messagerie, les abonnés aux flux d'événements et le limiteur de connexion vivent dans le processus : ils sont cloisonnés par cabinet mais ne survivent ni à un redémarrage ni à une seconde instance.
 - **Exploitation.** Pas de sauvegarde, de restauration, d'export ni de suppression par cabinet ; pas de quota ni de limite de débit par cabinet (un cabinet très actif ralentit l'autre) ; le cabinet n'apparaît ni dans les journaux ni dans les traces OpenTelemetry.
 - **Sous-domaines.** `clinicFromHost` est testé, mais l'application n'a été essayée que par le chemin `/c/<cabinet>/` : le mode sous-domaine demande un DNS et un certificat génériques.
-- **Navigation.** Le retour arrière du navigateur entre deux cabinets recharge la page plutôt que de basculer sans rechargement.
+- **Navigation.** Le sélecteur bascule sans rechargement, mais le retour arrière du navigateur entre deux cabinets recharge la page.
 - **Bases existantes.** Une base créée avant `V5` garde ses 11 praticiens dans `cabinet-a`, et `cabinet-b` reçoit ses 7 praticiens de démonstration : les praticiens de Lyon y figurent alors dans les deux cabinets. Une base neuve (`docker compose down -v`) donne la répartition 4 et 7.
 
 Aucune donnée réelle : uniquement les deux cabinets et les comptes fictifs de démonstration.

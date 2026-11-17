@@ -2,6 +2,7 @@
 import {computed, onMounted, ref} from 'vue';
 import {loadClinics} from '../../services/adminService';
 import {clinicPath} from '../../tenant';
+import {clinicsToCsv, downloadCsv} from '../../clinicCsv';
 import type {PlatformClinic} from '../../types';
 
 const clinics = ref<PlatformClinic[]>([]);
@@ -20,7 +21,18 @@ const visible = computed(() => {
   );
 });
 
-const emit = defineEmits<{create: []; edit: [slug: string]; stats: [clinic: PlatformClinic]; logs: [clinic: PlatformClinic]; journal: []}>();
+const emit = defineEmits<{
+  create: [];
+  edit: [slug: string];
+  calendar: [slug: string];
+  stats: [clinic: PlatformClinic];
+  logs: [clinic: PlatformClinic];
+  journal: [];
+}>();
+
+function exportCsv() {
+  downloadCsv(clinicsToCsv(visible.value), `cabinets.csv`);
+}
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('fr-FR', {timeZone: 'Europe/Paris'});
@@ -43,6 +55,9 @@ onMounted(async () => {
       <h2 id="clinics-title">Cabinets ({{ clinics.length }})</h2>
       <div class="head-actions">
         <button class="open" type="button" @click="emit('journal')">Journal des administrateurs</button>
+        <button class="export-button" type="button" :disabled="loading || visible.length === 0" @click="exportCsv">
+          Exporter en CSV
+        </button>
         <button class="create-button" type="button" @click="emit('create')">+ Créer un cabinet</button>
       </div>
     </div>
@@ -81,6 +96,9 @@ onMounted(async () => {
               <button class="open" type="button" :aria-label="'Statistiques de ' + c.name" @click="emit('stats', c)">Stats</button>
               <button class="open" type="button" :aria-label="'Journal de ' + c.name" @click="emit('logs', c)">Logs</button>
               <button class="open" type="button" :aria-label="'Modifier ' + c.name" @click="emit('edit', c.slug)">Modifier</button>
+              <button class="open" type="button" :aria-label="'Rendez-vous de ' + c.name" @click="emit('calendar', c.slug)">
+                Rendez-vous
+              </button>
               <a class="open" :href="clinicPath(c.slug)">Ouvrir</a>
             </td>
           </tr>
@@ -109,6 +127,22 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+}
+.export-button {
+  background: white;
+  color: #1e2a33;
+  border: 1px solid #1e2a33;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: 15px;
+}
+.export-button:hover:not(:disabled) {
+  background: #f0f3f5;
+}
+.export-button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 .create-button {
   background: #1e2a33;

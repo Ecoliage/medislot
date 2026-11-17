@@ -95,6 +95,12 @@ public class ClinicController {
       @NotBlank @Pattern(regexp = "#[0-9a-fA-F]{6}", message = "couleur #rrggbb attendue")
           String color) {}
 
+  @GetMapping("/me/clinics")
+  public java.util.List<ClinicDto> mine(Principal principal) {
+    Long userId = users.findByEmail(principal.getName()).orElseThrow().id;
+    return clinics.findByMember(userId).stream().map(ClinicDto::from).toList();
+  }
+
   @GetMapping("/clinic")
   public ClinicDto current() {
     return clinics

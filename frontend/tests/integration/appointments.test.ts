@@ -88,6 +88,8 @@ beforeEach(() => {
       result = {id: 2, name: 'Camille Patient', email: 'patient@medislot.test', role: 'PATIENT'};
     } else if (path === '/clinic') {
       result = clinic;
+    } else if (path === '/me/clinics') {
+      result = [clinic];
     } else if (path === '/notifications') {
       result = [];
     } else if (path === '/appointments/41/cancel') {
