@@ -1,9 +1,0 @@
-**/node_modules/
-**/target/
-**/dist/
-**/playwright-report/
-**/test-results/
-.env
-.idea/
-*.log
-**/coverage/**

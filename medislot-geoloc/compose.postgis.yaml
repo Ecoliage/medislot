@@ -1,7 +1,0 @@
-services:
-  db:
-    image: postgis/postgis:18-3.6
-    platform: linux/amd64
-  backend:
-    environment:
-      SPRING_PROFILES_ACTIVE: postgis
