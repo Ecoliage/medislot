@@ -2,6 +2,7 @@
 import {ref, onMounted} from 'vue';
 import {useSession} from '../stores/session';
 import {api} from '../api';
+import {nextPath} from '../services/authService';
 
 const session = useSession();
 const email = ref('');
@@ -12,8 +13,7 @@ const message = ref('');
 const EMAIL_VALIDE = /^[a-zA-Z0-9_.-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/;
 
 function suivant(): string {
-  const next = new URLSearchParams(window.location.search).get('next') || '/';
-  return next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  return nextPath(new URLSearchParams(window.location.search).get('next'), window.location.origin);
 }
 
 async function seConnecter() {

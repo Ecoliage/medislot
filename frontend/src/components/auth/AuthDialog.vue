@@ -15,6 +15,7 @@ const name = ref('');
 const busy = ref(false);
 const error = ref(props.initialError ?? '');
 const googleEnabled = ref(false);
+const demoEnabled = import.meta.env.VITE_DEMO === 'true';
 
 async function authenticate() {
   if (busy.value) return;
@@ -86,7 +87,7 @@ onMounted(() => {
     <button type="button" class="text-button" :disabled="busy" @click="register = !register">
       {{ register ? 'J’ai déjà un compte' : 'Créer un compte' }}
     </button>
-    <details class="demo-credentials">
+    <details v-if="demoEnabled" class="demo-credentials">
       <summary>Compte de démonstration</summary>
       <p>patient@medislot.test<br />MediSlot-demo-2026!</p>
     </details>

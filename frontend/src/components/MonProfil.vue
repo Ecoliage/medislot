@@ -14,6 +14,7 @@ const session = useSession();
 const profil = ref<Profil | null>(null);
 const nom = ref('');
 const email = ref('');
+const motDePasseActuel = ref('');
 const siteWeb = ref('https://exemple.test/mon-blog');
 const message = ref('');
 const avatarUrl = ref('');
@@ -34,13 +35,25 @@ async function charger() {
   email.value = profil.value.email;
 }
 
+function emailModifie(): boolean {
+  return profil.value !== null && email.value !== profil.value.email;
+}
+
 async function enregistrer() {
   if (!session.user) return;
-  profil.value = await api<Profil>('/patients/' + session.user.id, {
-    method: 'PUT',
-    body: JSON.stringify({name: nom.value, email: email.value}),
-  });
-  message.value = 'Profil enregistré pour ' + profil.value.name;
+  try {
+    const corps: {name: string; email: string; currentPassword?: string} = {name: nom.value, email: email.value};
+    if (emailModifie()) corps.currentPassword = motDePasseActuel.value;
+    profil.value = await api<Profil>('/patients/' + session.user.id, {
+      method: 'PUT',
+      body: JSON.stringify(corps),
+    });
+    await session.load();
+    motDePasseActuel.value = '';
+    message.value = 'Profil enregistré pour ' + profil.value.name;
+  } catch (e) {
+    message.value = e instanceof Error ? e.message : String(e);
+  }
 }
 
 async function envoyerAvatar(e: Event) {
@@ -64,6 +77,9 @@ onMounted(() => {
     <form class="auth-form" @submit.prevent="enregistrer">
       <label>Nom<input v-model="nom" maxlength="120" autocomplete="name" /></label>
       <label>E-mail<input v-model="email" type="email" autocomplete="email" /></label>
+      <label v-if="emailModifie()"
+        >Mot de passe actuel<input v-model="motDePasseActuel" type="password" required autocomplete="current-password"
+      /></label>
       <label>Site web<input v-model="siteWeb" type="url" /></label>
       <button class="primary" type="submit">Enregistrer</button>
     </form>

@@ -9,6 +9,12 @@ describe('Front/back : statut et corps', () => {
     );
     await expect(api('/appointments')).rejects.toEqual(new ApiError('Créneau déjà réservé', 409));
   });
+  it('remplace le message d’un trop grand nombre de tentatives', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html></html>', {status: 429})));
+    await expect(api('/compte/oubli')).rejects.toEqual(
+      new ApiError('Trop de tentatives, réessayez dans quelques minutes.', 429),
+    );
+  });
   it('conserve un résultat vide comme succès', async () => {
     vi.stubGlobal(
       'fetch',
