@@ -23,7 +23,7 @@ point "docker compose logs backend contient la version de l'agent" $?
 
 # Le collecteur groupe les spans par lots de 2 s, d'où l'attente avant d'interroger Jaeger
 echo "3. Une requête au back arrive dans Jaeger sous medislot-api"
-curl -s -o /dev/null "$APP/api/professionals"
+curl -s -o /dev/null -H "X-Clinic: ${CABINET:-cabinet-a}" "$APP/api/professionals"
 sleep 7
 curl -s "$JAEGER/api/v3/services" | grep -q '"medislot-api"'
 point "Jaeger propose le service medislot-api" $?

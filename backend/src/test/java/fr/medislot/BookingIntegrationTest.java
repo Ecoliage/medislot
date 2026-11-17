@@ -3,41 +3,23 @@ package fr.medislot;
 import static org.junit.jupiter.api.Assertions.*;
 
 import fr.medislot.application.BookingService;
-import fr.medislot.application.SmsGateway;
 import fr.medislot.repository.*;
 import java.time.*;
 import java.util.concurrent.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.server.ResponseStatusException;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
+import fr.medislot.tenant.TenantContext;
 
-@SpringBootTest
-@Testcontainers
-class BookingIntegrationTest {
-  @Container static PostgreSQLContainer db = new PostgreSQLContainer("postgres:18");
-
-  @DynamicPropertySource
-  static void database(DynamicPropertyRegistry r) {
-    r.add("spring.datasource.url", db::getJdbcUrl);
-    r.add("spring.datasource.username", db::getUsername);
-    r.add("spring.datasource.password", db::getPassword);
-    r.add("medislot.demo-seed", () -> "true");
-  }
-
-  @MockitoBean SmsGateway sms;
+class BookingIntegrationTest extends PostgresTestBase {
   @Autowired BookingService booking;
   @Autowired SlotRepository slots;
   @Autowired AuditRepository audit;
 
   @Test
   void concurrentBookingsProduceOneWinner() throws Exception {
+    Long clinic = clinicId(CLINIC_A);
+    enter(CLINIC_A);
     Long slot =
         slots.available(1L, Instant.now(), Instant.now().plus(Duration.ofDays(14))).getFirst().id;
     try (var pool = Executors.newFixedThreadPool(2)) {
@@ -46,8 +28,12 @@ class BookingIntegrationTest {
           () -> {
             start.await();
             try {
-              booking.book("patient@medislot.test", slot);
-              return 201;
+              return TenantContext.callIn(
+                  clinic,
+                  () -> {
+                    booking.book("patient@medislot.test", slot);
+                    return 201;
+                  });
             } catch (ResponseStatusException e) {
               return e.getStatusCode().value();
             }
@@ -66,6 +52,7 @@ class BookingIntegrationTest {
   @Disabled
   @Test
   void anotherPatientCannotCancelAndCancellationKeepsHistory() {
+    enter(CLINIC_A);
     Long slot =
         slots.available(2L, Instant.now(), Instant.now().plus(Duration.ofDays(14))).getFirst().id;
     var a = booking.book("patient@medislot.test", slot);

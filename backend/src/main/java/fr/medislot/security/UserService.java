@@ -2,6 +2,7 @@ package fr.medislot.security;
 
 import fr.medislot.domain.AppUser;
 import fr.medislot.repository.UserRepository;
+import fr.medislot.tenant.ClinicMemberships;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -27,10 +28,15 @@ public class UserService extends OidcUserService {
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
+  private final ClinicMemberships memberships;
 
-  public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+  public UserService(
+      UserRepository userRepository,
+      PasswordEncoder passwordEncoder,
+      ClinicMemberships memberships) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
+    this.memberships = memberships;
   }
 
   @Override
@@ -76,6 +82,8 @@ public class UserService extends OidcUserService {
     user.name = name.length() > NAME_MAX ? name.substring(0, NAME_MAX) : name;
     user.role = "PATIENT";
     user.password = passwordEncoder.encode(UUID.randomUUID().toString());
-    return userRepository.save(user);
+    AppUser saved = userRepository.save(user);
+    memberships.joinDefault(saved.id);
+    return saved;
   }
 }

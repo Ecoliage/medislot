@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted, ref} from 'vue';
+import {onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import AppHeader from './components/layout/AppHeader.vue';
 import AppFooter from './components/layout/AppFooter.vue';
 import FeedbackMessages from './components/ui/FeedbackMessages.vue';
@@ -13,14 +13,18 @@ import SearchView from './views/SearchView.vue';
 import AppointmentsView from './views/AppointmentsView.vue';
 import AdvancedSearchView from './views/AdvancedSearchView.vue';
 import PatientSpaceView from './views/PatientSpaceView.vue';
-import AdminView from './views/AdminView.vue';
+import ClinicView from './views/ClinicView.vue';
 import {usePractitionerSearch} from './composables/usePractitionerSearch';
 import {useAppointments} from './composables/useAppointments';
 import {useNotifications} from './composables/useNotifications';
+import {useClinic} from './stores/clinic';
 import {useSession} from './stores/session';
+import {safeColor} from './tenant';
 import {errorMessage} from './errors';
 import type {AppView, Professional, Slot} from './types';
 
+const clinic = useClinic();
+clinic.init();
 const session = useSession();
 const view = ref<AppView>('search');
 const ongletEspace = ref<string>();
@@ -39,6 +43,24 @@ const booking = useAppointments({
   },
 });
 const notifications = useNotifications(booking.refresh);
+
+watch(
+  () => clinic.current,
+  current => document.documentElement.style.setProperty('--clinic', safeColor(current?.color)),
+  {immediate: true},
+);
+watch(
+  () => clinic.slug,
+  () => {
+    profile.value = null;
+    booking.moveId = null;
+    if (!clinic.current) clinic.loadCurrent().catch(() => {});
+  },
+);
+
+function leaveByHistory() {
+  window.location.reload();
+}
 
 function home() {
   view.value = 'search';
@@ -107,12 +129,18 @@ onMounted(async () => {
   } else if (requested === 'admin') {
     view.value = 'admin';
   }
-  await search.search();
+  window.addEventListener('popstate', leaveByHistory);
   try {
     await session.load();
   } catch (error) {
     sessionError.value = errorMessage(error);
   }
+  if (!clinic.current) {
+    clinic.loadCurrent().catch(error => {
+      sessionError.value = errorMessage(error);
+    });
+  }
+  await search.search();
   const params = new URLSearchParams(window.location.search);
   if (params.get('error') === 'google') {
     authError.value =
@@ -123,6 +151,8 @@ onMounted(async () => {
     window.history.replaceState(null, '', window.location.pathname);
   }
 });
+
+onBeforeUnmount(() => window.removeEventListener('popstate', leaveByHistory));
 </script>
 
 <template>
@@ -167,7 +197,11 @@ onMounted(async () => {
   </AppointmentsView>
   <AdvancedSearchView v-else-if="view === 'recherche'" />
   <PatientSpaceView v-else-if="view === 'espace'" :onglet="ongletEspace" />
-  <AdminView v-else-if="view === 'admin'" />
+  <ClinicView v-else-if="view === 'admin' && session.user?.role === 'ADMIN'" />
+  <main v-else-if="view === 'admin'" id="main" class="main">
+    <p v-if="!session.user">Connectez-vous avec un compte administrateur pour accéder à cette page.</p>
+    <p v-else>Cette page est réservée aux administrateurs.</p>
+  </main>
   <AppFooter />
 
   <AuthDialog v-if="authOpen" :initial-error="authError" @close="closeAuth" @authenticated="authenticated" />

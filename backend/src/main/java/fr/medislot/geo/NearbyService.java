@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class NearbyService {
@@ -19,6 +20,7 @@ public class NearbyService {
     this.finder = finder;
   }
 
+  @Transactional(readOnly = true)
   public NearbyPage search(NearbyQuery query) {
     List<Nearby> results = new ArrayList<>(finder.findWithin(query));
     results.sort(ORDER);

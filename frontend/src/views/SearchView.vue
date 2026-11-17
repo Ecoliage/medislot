@@ -133,7 +133,7 @@ function choose(professional: Professional, slot: Slot) {
 
 <style scoped>
 .hero {
-  background: #0873b9;
+  background: var(--clinic, #0873b9);
   color: white;
 }
 .hero-inner {

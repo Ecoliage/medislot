@@ -5,6 +5,7 @@ import fr.medislot.domain.Appointment;
 import fr.medislot.repository.AppointmentRepository;
 import fr.medislot.repository.SlotRepository;
 import fr.medislot.repository.UserRepository;
+import fr.medislot.tenant.TenantContext;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import java.security.SecureRandom;
@@ -75,7 +76,9 @@ public class DebugController {
     Map<String, Object> m = new LinkedHashMap<>();
     m.put(
         "utilisateurs",
-        users.findAll().stream().map(u -> u.email + " / " + u.name).collect(Collectors.toList()));
+        users.findByClinic(TenantContext.require()).stream()
+            .map(u -> u.email + " / " + u.name)
+            .collect(Collectors.toList()));
     m.put("statistiques", calculerStatistiques());
     m.put("bucketExport", "s3://medislot-exports");
     m.put("appels", appels);
@@ -112,7 +115,7 @@ public class DebugController {
   public String exporterPatients() {
     StringBuilder csv = new StringBuilder("id;nom;email;role\n");
     users
-        .findAll()
+        .findByClinic(TenantContext.require())
         .forEach(
             u ->
                 csv.append(cellule(u.id))

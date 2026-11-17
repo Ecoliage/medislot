@@ -9,6 +9,10 @@ public class AuditEvent {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   public Long id;
 
+  @org.hibernate.annotations.TenantId
+  @Column(name = "clinic_id")
+  public Long clinicId;
+
   public Long appointmentId;
   public Long actorId;
   public String action;

@@ -10,8 +10,11 @@ import fr.medislot.geo.NearbyPage;
 import fr.medislot.geo.NearbyQuery;
 import fr.medislot.geo.NearbyService;
 import fr.medislot.geo.PostgisNearbyFinder;
+import fr.medislot.repository.ClinicRepository;
+import fr.medislot.tenant.TenantContext;
 import java.time.Duration;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -41,8 +44,8 @@ class PostgisNearbyTest {
   @DynamicPropertySource
   static void database(DynamicPropertyRegistry registry) {
     registry.add("spring.datasource.url", db::getJdbcUrl);
-    registry.add("spring.datasource.username", db::getUsername);
-    registry.add("spring.datasource.password", db::getPassword);
+    registry.add("spring.flyway.user", db::getUsername);
+    registry.add("spring.flyway.password", db::getPassword);
     registry.add("medislot.demo-seed", () -> "true");
   }
 
@@ -50,9 +53,21 @@ class PostgisNearbyTest {
 
   @Autowired NearbyFinder finder;
 
+  @Autowired ClinicRepository clinics;
+
+  @AfterEach
+  void clearClinic() {
+    TenantContext.clear();
+  }
+
+  private void enter(String slug) {
+    TenantContext.set(clinics.findBySlug(slug).orElseThrow().id);
+  }
+
   @Test
   void bellecourWithinFiveKilometresMatchesTheBoxFinder() {
     assertTrue(finder instanceof PostgisNearbyFinder);
+    enter("cabinet-b");
 
     NearbyPage page =
         service.search(
@@ -64,6 +79,7 @@ class PostgisNearbyTest {
 
   @Test
   void distancesStayCloseToHaversine() {
+    enter("cabinet-b");
     NearbyPage page =
         service.search(
             NearbyQuery.of(GeoFixtures.BELLECOUR_LAT, GeoFixtures.BELLECOUR_LON, 5.0, "", 0, 50));
@@ -79,6 +95,7 @@ class PostgisNearbyTest {
 
   @Test
   void oceanIsEmptyAndParisFindsItsPractitioners() {
+    enter("cabinet-a");
     assertTrue(service.search(NearbyQuery.of(0.0, 0.0, 5.0, "", 0, 6)).items().isEmpty());
 
     NearbyPage paris =

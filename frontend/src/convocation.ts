@@ -1,3 +1,5 @@
+import {apiUrl} from './api';
+
 export const MESSAGES: Record<number, string> = {
   401: 'Connectez-vous pour obtenir votre convocation.',
   404: 'Ce rendez-vous est introuvable.',
@@ -18,7 +20,7 @@ export class ConvocationError extends Error {
 }
 
 export function convocationUrl(id: number, download = false): string {
-  return `/api/appointments/${id}/convocation.pdf${download ? '?download=true' : ''}`;
+  return apiUrl(`/appointments/${id}/convocation.pdf${download ? '?download=true' : ''}`);
 }
 
 export function filenameFrom(header: string | null, id: number): string {

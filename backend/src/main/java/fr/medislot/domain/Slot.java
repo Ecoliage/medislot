@@ -9,6 +9,10 @@ public class Slot {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   public Long id;
 
+  @org.hibernate.annotations.TenantId
+  @Column(name = "clinic_id")
+  public Long clinicId;
+
   public Long professionalId;
   public java.time.Instant startsAt;
   public java.time.Instant endsAt;

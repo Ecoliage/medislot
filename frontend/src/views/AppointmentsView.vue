@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {apiUrl} from '../api';
 import CalendarButton from '../components/CalendarButton.vue';
 import ConvocationButton from '../components/ConvocationButton.vue';
 import {specialties, dateLabel, timeLabel, type Appointment} from '../types';
@@ -21,7 +22,7 @@ const emit = defineEmits<{
         <h1>Mes rendez-vous</h1>
       </div>
       <span
-        ><a class="text-button" href="/api/appointments/export">Exporter en CSV</a>
+        ><a class="text-button" :href="apiUrl('/appointments/export')">Exporter en CSV</a>
         <button class="primary" @click="emit('search')">Prendre rendez-vous</button></span
       >
     </div>

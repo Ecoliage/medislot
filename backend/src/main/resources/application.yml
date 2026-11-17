@@ -11,8 +11,8 @@ server:
 spring:
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/medislot}
-    username: ${DB_USER:medislot}
-    password: ${DB_PASSWORD:medislot-local-only}
+    username: medislot_app
+    password: ${APP_DB_PASSWORD:medislot-app-local-only}
   servlet:
     multipart:
       max-file-size: 2MB
@@ -23,6 +23,10 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    user: ${DB_USER:medislot}
+    password: ${DB_PASSWORD:medislot-local-only}
+    placeholders:
+      app_password: ${APP_DB_PASSWORD:medislot-app-local-only}
 management:
   endpoints:
     web:
@@ -30,6 +34,9 @@ management:
         include: health,info
 medislot:
   demo-seed: ${DEMO_SEED:false}
+  default-clinic: ${DEFAULT_CLINIC:cabinet-a}
+  logo-dir: ${LOGO_DIR:./data/logos}
+  pseudonym-key: ${PSEUDONYM_KEY:}
   export:
     aws-access-key-id: ${EXPORT_AWS_ACCESS_KEY_ID:}
   admin-password: ${ADMIN_PASSWORD:}

@@ -8,13 +8,28 @@ import fr.medislot.application.AdminBookingService;
 import fr.medislot.domain.AppUser;
 import fr.medislot.domain.Appointment;
 import fr.medislot.repository.*;
+import fr.medislot.tenant.TenantContext;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
 class DebugControllerTest {
+  private static final Long CLINIC = 1L;
+
+  @BeforeEach
+  void enterClinic() {
+    TenantContext.set(CLINIC);
+  }
+
+  @AfterEach
+  void leaveClinic() {
+    TenantContext.clear();
+  }
+
   private DebugController controller(String adminPassword) {
     return controller(adminPassword, List.of());
   }
@@ -26,7 +41,7 @@ class DebugControllerTest {
     var rdv = new Appointment();
     rdv.status = "CONFIRMED";
     when(appointments.findAll()).thenReturn(List.of(rdv));
-    when(users.findAll()).thenReturn(patients);
+    when(users.findByClinic(CLINIC)).thenReturn(patients);
     when(slots.count()).thenReturn(3L);
     return new DebugController(
         appointments,

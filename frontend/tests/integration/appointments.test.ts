@@ -24,6 +24,7 @@ const slots: Slot[] = [
   {id: 11, professionalId: 1, startsAt: '2026-12-01T08:00:00Z', endsAt: '2026-12-01T08:30:00Z'},
   {id: 12, professionalId: 1, startsAt: '2026-12-01T09:00:00Z', endsAt: '2026-12-01T09:30:00Z'},
 ];
+const clinic = {slug: 'cabinet-a', name: 'Cabinet des Tilleuls', city: 'Paris', color: '#0873b9'};
 const mounted: VueApp[] = [];
 let signedIn = false;
 let appointments: Appointment[] = [];
@@ -85,6 +86,10 @@ beforeEach(() => {
     } else if (path === '/me') {
       if (!signedIn) throw new ApiError('Non connecté', 401);
       result = {id: 2, name: 'Camille Patient', email: 'patient@medislot.test', role: 'PATIENT'};
+    } else if (path === '/clinic') {
+      result = clinic;
+    } else if (path === '/me/clinics') {
+      result = [clinic];
     } else if (path === '/notifications') {
       result = [];
     } else if (path === '/appointments/41/cancel') {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {ref, onMounted} from 'vue';
-import {api} from '../api';
+import {api, apiUrl} from '../api';
 
 interface Message {
   id: number;
@@ -44,7 +44,7 @@ onMounted(() => {
         <p>{{ m.contenu }}</p>
       </div>
       <div class="appointment-actions">
-        <a :href="'/api/messages/' + m.id + '/apercu'" target="_blank" rel="noopener">Ouvrir</a>
+        <a :href="apiUrl('/messages/' + m.id + '/apercu')" target="_blank" rel="noopener">Ouvrir</a>
       </div>
     </article>
   </div>

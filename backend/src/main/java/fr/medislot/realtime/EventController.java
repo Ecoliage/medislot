@@ -1,6 +1,7 @@
 package fr.medislot.realtime;
 
 import fr.medislot.application.*;
+import fr.medislot.tenant.TenantContext;
 import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.*;
@@ -13,7 +14,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 public class EventController {
-  private record Subscriber(SseEmitter emitter, Long patient) {}
+  private record Subscriber(SseEmitter emitter, Long clinic, Long patient) {}
 
   private static final int MAX_PUBLIC_SUBSCRIBERS = 500;
 
@@ -39,7 +40,7 @@ public class EventController {
 
   private SseEmitter connect(Long patient) {
     SseEmitter emitter = new SseEmitter(120000L);
-    Subscriber s = new Subscriber(emitter, patient);
+    Subscriber s = new Subscriber(emitter, TenantContext.get(), patient);
     clients.add(s);
     emitter.onCompletion(() -> clients.remove(s));
     emitter.onTimeout(
@@ -64,6 +65,7 @@ public class EventController {
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void committed(BookingChanged event) {
     for (Subscriber s : clients) {
+      if (!Objects.equals(s.clinic, event.clinicId())) continue;
       if (s.patient == null)
         send(s, "slots-changed", Map.of("professionalIds", event.professionalIds()));
       else if (s.patient.equals(event.patientId()))

@@ -14,7 +14,7 @@ test('les réponses publiques respectent le contrat OpenAPI', async ({request}) 
     ['/professionals/1', '/professionals/{id}'],
     ['/professionals/1/slots', '/professionals/{id}/slots'],
   ]) {
-    const response = await request.get('/api' + route);
+    const response = await request.get('/api' + route, {headers: {'X-Clinic': 'cabinet-a'}});
     expect(response.status()).toBe(200);
     const schema = contract.paths[path].get.responses['200'].content['application/json'].schema;
     const validate = ajv.compile({...schema, components: contract.components});

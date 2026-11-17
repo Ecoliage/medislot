@@ -2,7 +2,9 @@ package fr.medislot.repository;
 
 import fr.medislot.domain.Professional;
 import org.springframework.data.jpa.repository.*;
+import org.springframework.transaction.annotation.Transactional;
 
+@Transactional(readOnly = true)
 public interface ProfessionalRepository extends JpaRepository<Professional, Long> {
   @Query(
       "select p from Professional p where (:specialty = '' or p.specialty = :specialty) and (:city = '' or lower(p.city) like lower(concat('%',:city,'%'))) and (:q = '' or lower(p.name) like lower(concat('%',:q,'%')))")

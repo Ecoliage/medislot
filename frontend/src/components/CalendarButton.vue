@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import {apiUrl} from '../api';
+
 const props = defineProps<{id: number}>();
 
 async function downloadIcs() {
-  const ics = await fetch(`/api/calendar/${props.id}`, {
+  const ics = await fetch(apiUrl(`/calendar/${props.id}`), {
     credentials: 'same-origin',
     headers: {Accept: 'text/calendar'},
   });

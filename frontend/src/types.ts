@@ -44,6 +44,12 @@ export interface Identity {
   email: string;
   role: string;
 }
+export interface Clinic {
+  slug: string;
+  name: string;
+  city: string;
+  color: string;
+}
 export interface Page<T> {
   items: T[];
   page: number;
@@ -69,3 +75,55 @@ export const timeLabel = (date: string) =>
   new Intl.DateTimeFormat('fr-FR', {hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris'}).format(
     new Date(date),
   );
+export interface PlatformClinic {
+  slug: string;
+  name: string;
+  city: string;
+  color: string;
+  practitioners: number;
+  appointments30d: number;
+  createdAt: string;
+}
+export interface ClinicStats {
+  patients: number;
+  practitioners: number;
+  slots: number;
+  appointments: number;
+}
+export interface ClinicLog {
+  id: number;
+  action: string;
+  label: string;
+  appointmentId: number;
+  practitioner: string;
+  createdAt: string;
+}
+export interface PlatformEvent {
+  id: number;
+  action: string;
+  label: string;
+  actorEmail: string;
+  clinicSlug: string;
+  clinicName: string;
+  createdAt: string;
+}
+export interface ClinicDetails {
+  slug: string;
+  name: string;
+  city: string;
+  address: string | null;
+  color: string;
+  hasLogo: boolean;
+}
+export interface ClinicPractitioner {
+  id: number;
+  name: string;
+  specialty: string;
+}
+/** An appointment as platform administrators see it: the patient is only a pseudonym. */
+export interface CalendarEntry {
+  id: number;
+  startsAt: string;
+  patient: string;
+  status: string;
+}

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import fr.medislot.domain.AppUser;
 import fr.medislot.repository.UserRepository;
 import fr.medislot.security.UserService;
+import fr.medislot.tenant.ClinicMemberships;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -29,7 +30,9 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 class GoogleUserTest {
 
   private final UserRepository users = mock(UserRepository.class);
-  private final UserService service = new UserService(users, NoOpPasswordEncoder.getInstance());
+  private final ClinicMemberships memberships = mock(ClinicMemberships.class);
+  private final UserService service =
+      new UserService(users, NoOpPasswordEncoder.getInstance(), memberships);
 
   @Test
   void firstLoginCreatesAPatient() {

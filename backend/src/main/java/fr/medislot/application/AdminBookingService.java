@@ -2,6 +2,8 @@ package fr.medislot.application;
 
 import fr.medislot.domain.*;
 import fr.medislot.repository.*;
+import fr.medislot.tenant.ClinicMemberships;
+import fr.medislot.tenant.TenantContext;
 import java.time.Instant;
 import java.util.*;
 import org.springframework.context.ApplicationEventPublisher;
@@ -18,6 +20,7 @@ public class AdminBookingService {
   private final AuditRepository audit;
   private final NotificationRepository notifications;
   private final ApplicationEventPublisher events;
+  private final ClinicMemberships memberships;
 
   public AdminBookingService(
       UserRepository u,
@@ -25,17 +28,24 @@ public class AdminBookingService {
       AppointmentRepository a,
       AuditRepository h,
       NotificationRepository n,
-      ApplicationEventPublisher e) {
+      ApplicationEventPublisher e,
+      ClinicMemberships m) {
     users = u;
     slots = s;
     appointments = a;
     audit = h;
     notifications = n;
     events = e;
+    memberships = m;
   }
 
   public Long patient(String email) {
-    return users.findByEmail(email).orElseThrow().id;
+    return users
+        .findByEmail(email)
+        .filter(u -> memberships.isMember(u.id, TenantContext.get()))
+        .orElseThrow(
+            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Patient introuvable."))
+        .id;
   }
 
   private ResponseStatusException conflict() {
@@ -79,7 +89,7 @@ public class AdminBookingService {
     a.createdAt = Instant.now();
     appointments.saveAndFlush(a);
     record(a, "CREATED", "Votre rendez-vous est confirmé.");
-    events.publishEvent(new BookingChanged(patient, List.of(s.professionalId)));
+    events.publishEvent(new BookingChanged(TenantContext.get(), patient, List.of(s.professionalId)));
     return a;
   }
 
@@ -91,7 +101,7 @@ public class AdminBookingService {
     a.status = "CANCELLED";
     appointments.saveAndFlush(a);
     record(a, "CANCELLED", "Votre rendez-vous a été annulé.");
-    events.publishEvent(new BookingChanged(a.patientId, List.of(s.professionalId)));
+    events.publishEvent(new BookingChanged(TenantContext.get(), a.patientId, List.of(s.professionalId)));
     return a;
   }
 
@@ -109,7 +119,7 @@ public class AdminBookingService {
     appointments.saveAndFlush(a);
     record(a, "RESCHEDULED", "Votre rendez-vous a été déplacé.");
     events.publishEvent(
-        new BookingChanged(a.patientId, List.of(old.professionalId, target.professionalId)));
+        new BookingChanged(TenantContext.get(), a.patientId, List.of(old.professionalId, target.professionalId)));
     return a;
   }
 

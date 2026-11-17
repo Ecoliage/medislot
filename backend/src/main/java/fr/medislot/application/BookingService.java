@@ -2,6 +2,7 @@ package fr.medislot.application;
 
 import fr.medislot.domain.*;
 import fr.medislot.repository.*;
+import fr.medislot.tenant.TenantContext;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
@@ -94,7 +95,7 @@ public class BookingService {
     LOG.info("Rendez-vous {} confirme pour le patient {}", a.id, patient);
     sms.envoyerConfirmation(patient, code);
     record(a, "CREATED", "Votre rendez-vous est confirmé. Code de confirmation : " + code);
-    events.publishEvent(new BookingChanged(patient, List.of(s.professionalId)));
+    events.publishEvent(new BookingChanged(TenantContext.get(), patient, List.of(s.professionalId)));
     return a;
   }
 
@@ -106,7 +107,7 @@ public class BookingService {
     a.status = "CANCELLED";
     appointments.saveAndFlush(a);
     record(a, "CANCELLED", "Votre rendez-vous a été annulé.");
-    events.publishEvent(new BookingChanged(a.patientId, List.of(s.professionalId)));
+    events.publishEvent(new BookingChanged(TenantContext.get(), a.patientId, List.of(s.professionalId)));
     return a;
   }
 
@@ -124,7 +125,7 @@ public class BookingService {
     appointments.saveAndFlush(a);
     record(a, "RESCHEDULED", "Votre rendez-vous a été déplacé.");
     events.publishEvent(
-        new BookingChanged(a.patientId, List.of(old.professionalId, target.professionalId)));
+        new BookingChanged(TenantContext.get(), a.patientId, List.of(old.professionalId, target.professionalId)));
     return a;
   }
 
