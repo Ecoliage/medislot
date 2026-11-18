@@ -20,7 +20,7 @@
     "@opentelemetry/semantic-conventions": "1.45.0",
     "leaflet": "^1.9.4",
     "pinia": "^3.0.0",
-    "vue": "^3.5.0"
+    "vue": "^3.5.45"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1",
